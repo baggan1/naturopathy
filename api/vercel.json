@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "api/fetch_naturopathy_results.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/fetch_naturopathy_results.py"
+    }
+  ]
+}
