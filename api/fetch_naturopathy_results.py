@@ -24,3 +24,7 @@ async def fetch_results(request: Request):
             json=body
         )
     return res.json()
+@app.get("/")
+def health():
+    return {"status": "ok", "message": "Naturopathy proxy is running!"}
+
