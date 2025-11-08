@@ -15,7 +15,7 @@ async def fetch_results(request: Request):
 
     async with httpx.AsyncClient() as client:
         res = await client.post(
-            f"{SUPABASE_URL}/rest/v1/rpc/fetch_naturopathy_results",
+            f"{SUPABASE_URL}/rest/v1/rpc/match_documents_v2",
             headers={
                 "apikey": SUPABASE_SERVICE_KEY,
                 "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
