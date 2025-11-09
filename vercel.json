@@ -1,14 +1,9 @@
 {
-  "builds": [
-    {
-      "src": "api/fetch_naturopathy_results.py",
-      "use": "@vercel/python"
+  "version": 2,
+  "functions": {
+    "api/fetch_naturopathy_results.py": {
+      "runtime": "python3.11",
+      "maxDuration": 20
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "api/fetch_naturopathy_results.py"
-    }
-  ]
+  }
 }
