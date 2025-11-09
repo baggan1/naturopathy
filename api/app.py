@@ -7,7 +7,8 @@ app = FastAPI()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
-encoder = SentenceTransformer("sentence-transformers/paraphrase-MiniLM-L3-v2")
+# Load local model (pre-saved in ./model)
+encoder = SentenceTransformer("./model")
 
 @app.get("/")
 def root():
@@ -20,7 +21,6 @@ async def fetch_results(request: Request):
     if not query:
         return {"error": "Missing 'query' field."}
 
-    # Generate embedding
     query_embedding = encoder.encode([query])[0].tolist()
 
     async with httpx.AsyncClient() as client:
@@ -29,13 +29,12 @@ async def fetch_results(request: Request):
             headers={
                 "apikey": SUPABASE_SERVICE_KEY,
                 "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-                "Content-Type": "application/json",
+                "Content-Type": "application/json"
             },
             json={
                 "query_embedding": query_embedding,
                 "match_threshold": body.get("match_threshold", 0.4),
-                "match_count": body.get("match_count", 3),
-            },
+                "match_count": body.get("match_count", 3)
+            }
         )
-
     return res.json()
