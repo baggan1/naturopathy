@@ -1,18 +1,21 @@
 from fastapi import FastAPI, Request
 import httpx, os
 from sentence_transformers import SentenceTransformer
+from pathlib import Path
 
 app = FastAPI()
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
-# Load local model (pre-saved in ./model)
-encoder = SentenceTransformer("./model")
+# ✅ Load local model safely using absolute path
+MODEL_DIR = Path(__file__).resolve().parent.parent / "model"
+print(f"🔹 Loading model from: {MODEL_DIR}")
+encoder = SentenceTransformer(str(MODEL_DIR))
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "Naturopathy Proxy API is running."}
+    return {"status": "ok", "message": "Naturopathy API is running on Render."}
 
 @app.post("/fetch_naturopathy_results")
 async def fetch_results(request: Request):
@@ -37,4 +40,5 @@ async def fetch_results(request: Request):
                 "match_count": body.get("match_count", 3)
             }
         )
+
     return res.json()
