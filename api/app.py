@@ -7,7 +7,7 @@ app = FastAPI()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
-encoder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+encoder = SentenceTransformer("sentence-transformers/paraphrase-MiniLM-L3-v2")
 
 @app.get("/")
 def root():
