@@ -1,3 +1,4 @@
+print("🚀 Starting naturopathy proxy function...")
 from fastapi import FastAPI, Request
 import httpx, os, traceback
 from sentence_transformers import SentenceTransformer
