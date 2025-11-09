@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-sentence-transformers
-numpy
-torch
 httpx
+sentence-transformers
+torch
+numpy
