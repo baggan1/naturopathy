@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: naturopathy-api
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn api.app:app --host 0.0.0.0 --port $PORT"
+    plan: free
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
