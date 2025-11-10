@@ -18,7 +18,7 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 # ----------------------------------------------------
 # Load or Auto-Download the Model
 # ----------------------------------------------------
-MODEL_DIR = Path(__file__).resolve().parent.parent / "model"
+MODEL_DIR = Path(__file__).resolve().parent.parent / "naturopathy" / "model"
 
 if not MODEL_DIR.exists():
     print("📦 Model folder not found — downloading fresh copy from Hugging Face...")
