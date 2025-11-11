@@ -1,7 +1,6 @@
 # ==============================
-# api/app.py  (FINAL VERIFIED)
+# api/app.py (Self-Healing Render Version)
 # ==============================
-
 from fastapi import FastAPI, Request
 import httpx, os
 from pathlib import Path
@@ -10,26 +9,40 @@ from sentence_transformers import SentenceTransformer
 app = FastAPI()
 
 # ----------------------------------------------------
-# Environment Variables for Supabase
+# Environment Variables
 # ----------------------------------------------------
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
 # ----------------------------------------------------
-# Load or Auto-Download the Model
+# Model Path Configuration
 # ----------------------------------------------------
 MODEL_DIR = Path(__file__).resolve().parent.parent / "model"
+MODEL_FILE = MODEL_DIR / "0_Transformer" / "model.safetensors"
 
-if not MODEL_DIR.exists():
-    print("📦 Model folder not found — downloading fresh copy from Hugging Face...")
-    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    model.save(str(MODEL_DIR))
-else:
-    print(f"✅ Found local model at: {MODEL_DIR}")
+# ----------------------------------------------------
+# Auto-Healing Model Loader
+# ----------------------------------------------------
+def load_or_download_model():
+    """
+    Attempts to load local SentenceTransformer model.
+    If missing or incomplete, downloads from Hugging Face.
+    """
+    try:
+        if MODEL_FILE.exists():
+            print(f"✅ Found model file: {MODEL_FILE}")
+            model = SentenceTransformer(str(MODEL_DIR))
+        else:
+            print("⚠️ model.safetensors not found — downloading fresh model from Hugging Face...")
+            model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            model.save(str(MODEL_DIR))
+            print(f"✅ Model downloaded and saved to {MODEL_DIR}")
+        return model
+    except Exception as e:
+        print(f"❌ Model load failed: {e}")
+        raise e
 
-# Load the local model
-encoder = SentenceTransformer(str(MODEL_DIR))
-print("✅ SentenceTransformer model loaded successfully.")
+encoder = load_or_download_model()
 
 # ----------------------------------------------------
 # Health Check Endpoint
@@ -39,16 +52,13 @@ def root():
     return {"status": "ok", "message": "Naturopathy API is running on Render."}
 
 # ----------------------------------------------------
-# Main Endpoint for GPT or External Calls
+# Fetch Naturopathy Results
 # ----------------------------------------------------
 @app.post("/fetch_naturopathy_results")
 async def fetch_results(request: Request):
     """
-    Takes a JSON body with:
-      - query: the natural-language question or ailment
-      - match_threshold (optional): float
-      - match_count (optional): int
-    Returns top matching naturopathy remedies from Supabase.
+    Fetches top matching naturopathy remedies from Supabase.
+    If Supabase or model fails, returns detailed error message.
     """
     try:
         body = await request.json()
@@ -56,8 +66,10 @@ async def fetch_results(request: Request):
         if not query:
             return {"error": "Missing 'query' field."}
 
+        # Create embedding vector
         query_embedding = encoder.encode([query])[0].tolist()
 
+        # Query Supabase function
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 f"{SUPABASE_URL}/rest/v1/rpc/match_documents_v2",
