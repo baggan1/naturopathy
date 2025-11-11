@@ -1,9 +1,8 @@
-# ==============================
-# api/app.py (Self-Healing Render Version)
-# ==============================
+# =====================================
+# api/app.py — Hugging Face hosted version
+# =====================================
 from fastapi import FastAPI, Request
 import httpx, os
-from pathlib import Path
 from sentence_transformers import SentenceTransformer
 
 app = FastAPI()
@@ -11,54 +10,48 @@ app = FastAPI()
 # ----------------------------------------------------
 # Environment Variables
 # ----------------------------------------------------
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN")  # Optional: your Hugging Face Access Token
+HF_MODEL_REPO = os.getenv("HF_MODEL_REPO", "sentence-transformers/all-MiniLM-L6-v2")
 
 # ----------------------------------------------------
-# Model Path Configuration
+# Load model from Hugging Face (hosted repo)
 # ----------------------------------------------------
-MODEL_DIR = Path(__file__).resolve().parent.parent / "model"
-MODEL_FILE = MODEL_DIR / "0_Transformer" / "model.safetensors"
-
-# ----------------------------------------------------
-# Auto-Healing Model Loader
-# ----------------------------------------------------
-def load_or_download_model():
+def load_hf_model():
     """
-    Attempts to load local SentenceTransformer model.
-    If missing or incomplete, downloads from Hugging Face.
+    Load the SentenceTransformer model directly from Hugging Face.
+    Uses your own repo if defined in HF_MODEL_REPO.
     """
+    print(f"🔹 Loading model from Hugging Face repo: {HF_MODEL_REPO}")
     try:
-        if MODEL_FILE.exists():
-            print(f"✅ Found model file: {MODEL_FILE}")
-            model = SentenceTransformer(str(MODEL_DIR))
-        else:
-            print("⚠️ model.safetensors not found — downloading fresh model from Hugging Face...")
-            model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-            model.save(str(MODEL_DIR))
-            print(f"✅ Model downloaded and saved to {MODEL_DIR}")
+        model = SentenceTransformer(HF_MODEL_REPO, use_auth_token=HF_TOKEN)
+        print("✅ SentenceTransformer model loaded successfully from Hugging Face.")
         return model
     except Exception as e:
-        print(f"❌ Model load failed: {e}")
+        print(f"❌ Model load failed from Hugging Face: {e}")
         raise e
 
-encoder = load_or_download_model()
+encoder = load_hf_model()
 
 # ----------------------------------------------------
 # Health Check Endpoint
 # ----------------------------------------------------
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "Naturopathy API is running on Render."}
+    return {
+        "status": "ok",
+        "model_repo": HF_MODEL_REPO,
+        "message": "Naturopathy API is running on Render using Hugging Face model.",
+    }
 
 # ----------------------------------------------------
-# Fetch Naturopathy Results
+# Main Endpoint for GPT or Clients
 # ----------------------------------------------------
 @app.post("/fetch_naturopathy_results")
 async def fetch_results(request: Request):
     """
-    Fetches top matching naturopathy remedies from Supabase.
-    If Supabase or model fails, returns detailed error message.
+    Fetches embeddings for a query, and matches top remedies from Supabase.
     """
     try:
         body = await request.json()
@@ -66,10 +59,10 @@ async def fetch_results(request: Request):
         if not query:
             return {"error": "Missing 'query' field."}
 
-        # Create embedding vector
+        # Encode query
         query_embedding = encoder.encode([query])[0].tolist()
 
-        # Query Supabase function
+        # Query Supabase RPC
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 f"{SUPABASE_URL}/rest/v1/rpc/match_documents_v2",
