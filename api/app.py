@@ -2,6 +2,9 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import httpx, os
+from openai import OpenAI
+
+client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
 
@@ -30,37 +33,33 @@ EMBEDDING_API = os.getenv(
 async def fetch_results(request: Request):
     try:
         body = await request.json()
-        
+
         # Auth
         if body.get("auth_key") != SECRET:
-           return {"error": "Unauthorized"}
-            
-        # Extract & clean query
+            return {"error": "Unauthorized"}
+
         query = body.get("query", "").strip()
         if not query:
             return {"error": "Missing 'query' field."}
 
         # --------------------
-        # 1. Call HuggingFace for Embedding
+        # 1. HF Embedding
         # --------------------
         async with httpx.AsyncClient(timeout=60.0) as client:
             emb_res = await client.post(
-            EMBEDDING_API,
-            json={"query": query}
+                EMBEDDING_API,
+                json={"query": query}
             )
 
         if emb_res.status_code != 200:
-            return {
-                "error": "Embedding API failed", 
-                "details": emb_res.text
-            }
+            return {"error": "Embedding API failed", "details": emb_res.text}
 
         query_embedding = emb_res.json().get("embedding")
         if not query_embedding:
-            return {"error": "Invalid embedding returned from HF"}
+            return {"error": "Invalid embedding returned by HF"}
 
         # --------------------
-        # 2. Now query Supabase RPC (match_documents_v2)
+        # 2. Supabase RPC
         # --------------------
         rpc_payload = {
             "query_embedding": query_embedding,
@@ -86,17 +85,49 @@ async def fetch_results(request: Request):
                 "details": response.text,
             }
 
-        data = response.json()
-        if not data:
-            return {"message": "No matches found for that query."}
+        matches = response.json()
+
+        if not matches:
+            return {"message": "No matches found."}
+
+        # --------------------
+        # 3. LLM Summarization Layer (Nani-AI Magic)
+        # --------------------
+        chunks_text = "\n\n".join(
+            [f"- {m['chunk']}" for m in matches]
+        )
+
+        prompt = f"""
+You are Nani-AI, a warm, clear Naturopathy assistant.
+
+Summarize the following naturopathy text into **simple, actionable remedies** for: {query}
+
+Text:
+{chunks_text}
+
+Instructions:
+- Give 4–6 specific remedies
+- Use bullet points
+- Be concise but friendly
+- Include diet, lifestyle, hydrotherapy or home remedies
+- Do NOT mention 'chunks' or 'documents'
+- Make it easy to follow
+
+End with this disclaimer:
+"⚠️ These suggestions are based on naturopathy sources. In case of severe or emergency symptoms, consult a healthcare professional."
+"""
+
+        ai_res = client_ai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        summary = ai_res.choices[0].message.content
 
         return {
             "query": query,
-            "results": data,
-            "note": (
-                "⚠️ These are natural remedies from Naturopathy sources. "
-                "For serious or emergency conditions, please consult a healthcare professional."
-            ),
+            "summary": summary,
+            "sources": [m["source"] for m in matches],
         }
 
     except Exception as e:
