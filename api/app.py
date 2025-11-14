@@ -6,6 +6,7 @@ app = FastAPI()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+SECRET = os.getenv("APP_SECRET")
 
 # Your Hugging Face Space URL
 EMBEDDING_API = os.getenv(
@@ -17,6 +18,8 @@ EMBEDDING_API = os.getenv(
 async def fetch_results(request: Request):
     try:
         body = await request.json()
+        if body.get("auth_key") != SECRET:
+           return {"error": "Unauthorized"}
         query = body.get("query")
         if not query:
             return {"error": "Missing 'query' field."}
