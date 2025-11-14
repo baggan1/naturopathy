@@ -44,15 +44,17 @@ async def fetch_results(request: Request):
         # 1. Call HuggingFace for Embedding
         # --------------------
         async with httpx.AsyncClient(timeout=60.0) as client:
-            emb_res = await client.post(
-                EMBEDDING_API,
-                json={"query": query}
-            )
-        # Do NOT use raise_for_status()    
+        emb_res = await client.post(
+            EMBEDDING_API,
+            json={"query": query}
+        )
+
         if emb_res.status_code != 200:
             return {"error": "Embedding API failed", "details": emb_res.text}
-            
-        query_embedding = emb_res.json()["embedding"]
+
+        query_embedding = emb_res.json().get("embedding")
+        if not query_embedding:
+            return {"error": "Invalid embedding returned from HF"}
 
         # --------------------
         # 2. Now query Supabase RPC (match_documents_v2)
