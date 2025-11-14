@@ -1,7 +1,15 @@
 # Inside your /api/app.py
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 import httpx, os
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # for demo phase
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app = FastAPI()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
