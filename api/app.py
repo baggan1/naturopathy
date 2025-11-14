@@ -4,9 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import httpx, os
 
 app = FastAPI()
+# --------------------
+# CORS SETTINGS
+# --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # for demo phase
+    allow_origins=["https://arkayoga.com", "https://www.arkayoga.com"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
