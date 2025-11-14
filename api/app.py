@@ -44,13 +44,16 @@ async def fetch_results(request: Request):
         # 1. Call HuggingFace for Embedding
         # --------------------
         async with httpx.AsyncClient(timeout=60.0) as client:
-        emb_res = await client.post(
+            emb_res = await client.post(
             EMBEDDING_API,
             json={"query": query}
-        )
+            )
 
         if emb_res.status_code != 200:
-            return {"error": "Embedding API failed", "details": emb_res.text}
+            return {
+                "error": "Embedding API failed", 
+                "details": emb_res.text
+            }
 
         query_embedding = emb_res.json().get("embedding")
         if not query_embedding:
