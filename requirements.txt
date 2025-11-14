@@ -1,6 +1,8 @@
 fastapi
 uvicorn
 httpx
+python-dotenv
 sentence-transformers
 torch
 numpy
+openai>=1.2.0
