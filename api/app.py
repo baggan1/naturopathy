@@ -13,14 +13,17 @@ app = FastAPI()
 # --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[ "https://arkayoga.com",
-        "https://www.arkayoga.com",
-        "https://arkayoga.com/*",
-        "https://www.arkayoga.com/*",],  
+    allow_origins=["*"],     # TEMPORARY (enable per-domain later)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# Handle Squarespace preflight
+@app.options("/fetch_naturopathy_results")
+async def preflight_handler():
+    return {"status": "ok"}
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
