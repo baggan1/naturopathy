@@ -77,10 +77,14 @@ async def fetch_results(request: Request):
         # 2. Supabase RPC
         # --------------------
         rpc_payload = {
-            "query_embedding": query_embedding,
+            "query_embedding": {
+                "type": "vec",
+                "value": query_embedding
+            },
             "match_threshold": body.get("match_threshold", 0.4),
             "match_count": body.get("match_count", 3),
-        }
+         }
+
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
@@ -104,7 +108,8 @@ async def fetch_results(request: Request):
 
         if not matches:
             return {"message": "No matches found."}
-
+       
+        print("Sending vector type:", type(query_embedding), "length:", len(query_embedding))
         # --------------------
         # 3. LLM Summarization Layer (Nani-AI Magic)
         # --------------------
