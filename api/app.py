@@ -60,9 +60,18 @@ async def fetch_results(request: Request):
         if emb_res.status_code != 200:
             return {"error": "Embedding API failed", "details": emb_res.text}
 
-        query_embedding = emb_res.json().get("embedding")
-        if not query_embedding:
-            return {"error": "Invalid embedding returned by HF"}
+        embed_json = emb_res.json()
+        # HF Spaces sometimes return {"embedding": [...]} or {"data": {"embedding": [...]}}
+        if "embedding" in embed_json:
+            query_embedding = embed_json["embedding"]
+        elif "data" in embed_json and "embedding" in embed_json["data"]:
+            query_embedding = embed_json["data"]["embedding"]
+        else:
+            return {"error": "Invalid embedding response from HF", "raw": embed_json}
+        # Flatten if nested
+        if isinstance(query_embedding, list) and len(query_embedding) == 1 and isinstance(query_embedding[0], list):
+            query_embedding = query_embedding[0]
+        print("Embedding length:", len(query_embedding))
 
         # --------------------
         # 2. Supabase RPC
