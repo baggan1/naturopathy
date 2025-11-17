@@ -130,8 +130,6 @@ Instructions:
 - Do NOT mention 'chunks' or 'documents'
 - Make it easy to follow
 
-End with this disclaimer:
-"⚠️ Nani-AI provides general wellness suggestions based on naturopathy and Ayurvedic principles. It is not a substitute for professional medical advice, diagnosis, or treatment. For severe, urgent, or worsening symptoms, please consult a licensed healthcare professional immediately."
 """
 
         ai_res = client_ai.chat.completions.create(
@@ -139,7 +137,15 @@ End with this disclaimer:
             messages=[{"role": "user", "content": prompt}]
         )
 
-        summary = ai_res.choices[0].message.content
+        raw_summary = ai_res.choices[0].message.content
+        
+        DISCLAIMER = (
+        "⚠️ Disclaimer: Nani-AI provides general wellness suggestions derived from "
+        "Naturopathy and Ayurvedic principles. This is not medical advice. For severe, "
+        "persistent, or emergency symptoms, consult a licensed healthcare professional."
+        )
+
+        summary = raw_summary + "\n\n---\n" + DISCLAIMER
 
         return {
             "query": query,
