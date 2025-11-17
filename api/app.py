@@ -131,7 +131,7 @@ Instructions:
 - Make it easy to follow
 
 End with this disclaimer:
-"⚠️ These suggestions are based on naturopathy sources. In case of severe or emergency symptoms, consult a healthcare professional."
+"⚠️ Nani-AI provides general wellness suggestions based on naturopathy and Ayurvedic principles. It is not a substitute for professional medical advice, diagnosis, or treatment. For severe, urgent, or worsening symptoms, please consult a licensed healthcare professional immediately."
 """
 
         ai_res = client_ai.chat.completions.create(
