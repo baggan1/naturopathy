@@ -2,7 +2,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import httpx, os, json
-import time
+import time, asyncio
 from openai import OpenAI
 
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
