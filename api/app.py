@@ -2,6 +2,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import httpx, os, json
+import time
 from openai import OpenAI
 
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -37,6 +38,7 @@ EMBEDDING_API = os.getenv(
 
 @app.post("/fetch_naturopathy_results")
 async def fetch_results(request: Request):
+    start_time = time.time()
     try:
         body = await request.json()
 
@@ -106,6 +108,21 @@ async def fetch_results(request: Request):
             return {"message": "No matches found."}
        
         print("Sending vector type:", type(query_embedding), "length:", len(query_embedding))
+
+async def log_analytics(data):
+    try:
+            async with httpx.AsyncClient(timeout=30) as client:
+            await client.post(
+                f"{SUPABASE_URL}/rest/v1/analytics_logs",
+                headers={
+                    "apikey": SUPABASE_SERVICE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=data
+            )
+    except Exception as e:
+        print("Analytics logging failed:", str(e))
         
         # --------------------
         # 3. LLM Summarization Layer (Nani-AI Magic)
@@ -147,10 +164,33 @@ Instructions:
 
         summary = raw_summary + "\n\n---\n" + DISCLAIMER
 
+        latency = int((time.time() - start_time) * 1000)
+
+        # Extract sources
+        matched_sources = [m["source"] for m in matches] if matches else []
+
+        # Determine what was used
+        used_embeddings = True if matches else False
+        used_google_search = False  # You can flip this if you add fallback
+
+        # Analytics payload
+        analytics_payload = {
+            "query": query,
+            "used_embeddings": used_embeddings,
+            "used_google_search": used_google_search,
+            "sources": matched_sources,
+            "match_count": len(matches) if matches else 0,
+            "latency_ms": latency
+        }
+
+        # Fire and forget logging
+        asyncio.create_task(log_analytics(analytics_payload))
+
+        # Now return your response
         return {
             "query": query,
             "summary": summary,
-            "sources": [m["source"] for m in matches],
+            "sources": matched_sources
         }
 
     except Exception as e:
