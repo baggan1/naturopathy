@@ -36,6 +36,24 @@ EMBEDDING_API = os.getenv(
     "https://mystiqspice-naturopathy-embedder.hf.space/embed"
 )
 
+# --------------------
+# ANALYTICS LOGGING FUNCTION
+# --------------------
+async def log_analytics(data):
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            await client.post(
+                f"{SUPABASE_URL}/rest/v1/analytics_logs",
+                headers={
+                    "apikey": SUPABASE_SERVICE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json=data
+            )
+    except Exception as e:
+        print("Analytics logging failed:", str(e))
+
 @app.post("/fetch_naturopathy_results")
 async def fetch_results(request: Request):
     start_time = time.time()
@@ -108,22 +126,7 @@ async def fetch_results(request: Request):
             return {"message": "No matches found."}
        
         print("Sending vector type:", type(query_embedding), "length:", len(query_embedding))
-
-async def log_analytics(data):
-    try:
-            async with httpx.AsyncClient(timeout=30) as client:
-            await client.post(
-                f"{SUPABASE_URL}/rest/v1/analytics_logs",
-                headers={
-                    "apikey": SUPABASE_SERVICE_KEY,
-                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json=data
-            )
-    except Exception as e:
-        print("Analytics logging failed:", str(e))
-        
+      
         # --------------------
         # 3. LLM Summarization Layer (Nani-AI Magic)
         # --------------------
@@ -163,7 +166,10 @@ Instructions:
         )
 
         summary = raw_summary + "\n\n---\n" + DISCLAIMER
-
+        
+        # --------------------
+        # Analytics Logging
+        # --------------------
         latency = int((time.time() - start_time) * 1000)
 
         # Extract sources
