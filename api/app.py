@@ -261,13 +261,17 @@ Instructions:
 
         asyncio.create_task(log_analytics(analytics_payload))
 
-        return {
+       return {
             "query": query,
             "summary": summary,
             "sources": matched_sources,
-            "mode": mode,
-            "max_similarity": max_similarity
+            "match_count": len(matches),
+            "max_similarity": max([m["similarity"] for m in matches]),
+            "rag_used": rag_used,
+            "llm_used": llm_used,
+            "mode": mode   # e.g. "RAG_ONLY", "LLM_ONLY", "HYBRID"
         }
+
     except Exception as e:
         return {"error": f"Server exception: {str(e)}"}
 
