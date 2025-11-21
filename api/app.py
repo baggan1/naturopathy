@@ -268,5 +268,8 @@ Instructions:
             "mode": mode,
             "max_similarity": max_similarity
         }
+      except Exception as e:
+            return {"error": f"Server exception: {str(e)}"}
+
 
 
