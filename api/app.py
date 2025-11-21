@@ -138,33 +138,101 @@ async def fetch_results(request: Request):
             return {"message": "No matches found."}
 
         # ----------------------------
-        # 3. LLM Summarization
+        # 3. HYBRID LOGIC — Combine RAG + LLM intelligently
         # ----------------------------
-        chunks_text = "\n\n".join([f"- {m['chunk']}" for m in matches])
+        
 
-        prompt = f"""
-You are Nani-AI, a warm and clear naturopathy assistant.
+        # Calculate confidence
+        similarities = [m["similarity"] for m in matches] if matches else []
+        max_similarity = max(similarities) if similarities else 0
 
-Summarize helpful remedies for: {query}
+        # Decide mode
+        rag_used = False
+        llm_used = False
+        mode = "none"
 
-Source Text:
+        chunks_text = "\n\n".join([f"- {m['chunk']}" for m in matches]) if matches else ""
+
+        # ---------------
+        # CASE 1: HIGH CONFIDENCE → RAG SUMMARY (Primary)
+        # ---------------
+        if matches and max_similarity >= 0.70:
+            mode = "RAG_ONLY"
+            rag_used = True
+            llm_used = True   # summarizer still used
+            final_prompt = f"""
+You are Nani-AI.
+
+Provide clear, actionable naturopathy + ayurveda guidance for the query:
+{query}
+
+Use the following retrieved text:
 {chunks_text}
 
 Instructions:
-- Give 4–6 specific remedies
-- Use bullet points
-- Be concise but friendly
-- Include diet, lifestyle, hydrotherapy, or home remedies
-- Do NOT mention documents or sources
+- Summarize RAG content first
+- Provide 4–6 bullet-point remedies
+- Include diet, lifestyle, hydrotherapy
+- Keep the tone warm and simple
 """
 
+        # ---------------
+        # CASE 2: MEDIUM CONFIDENCE → HYBRID BLEND
+        # ---------------
+        elif matches and 0.40 <= max_similarity < 0.70:
+            mode = "HYBRID"
+            rag_used = True
+            llm_used = True
+
+            final_prompt = f"""
+You are Nani-AI.
+
+User query:
+{query}
+
+We found related information but confidence is moderate.
+Blend retrieved naturopathy text with your own ayurvedic reasoning.
+
+Retrieved text:
+{chunks_text}
+
+Instructions:
+- Start with the best RAG insights
+- Add LLM enhancements to fill gaps
+- Provide 4–6 simple remedies
+- Include food, herbs, habits, and home practices
+"""
+
+        # ---------------
+        # CASE 3: LOW/NO MATCHES → PURE LLM FALLBACK
+        # ---------------
+        else:
+            mode = "LLM_ONLY"
+            rag_used = False
+            llm_used = True
+
+            final_prompt = f"""
+You are Nani-AI.
+
+No reliable matches were found in the database for:
+{query}
+
+Generate an ayurveda + naturopathy–based answer from scratch.
+
+Instructions:
+- Provide 4–6 bullet-point remedies
+- Include diet, herbs, lifestyle, and home treatments
+- Keep it simple, safe, and practical
+"""
+
+        # Run the LLM
         ai_res = client_ai.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": final_prompt}]
         )
-
         raw_summary = ai_res.choices[0].message.content
 
+        # Disclaimer
         DISCLAIMER = (
             "⚠️ Disclaimer: Nani-AI provides general wellness suggestions derived from "
             "Naturopathy and Ayurvedic principles. This is not medical advice. For severe, "
@@ -174,32 +242,31 @@ Instructions:
         summary = raw_summary + "\n\n---\n" + DISCLAIMER
 
 
-        # ----------------------------
-        # 4. ANALYTICS (async)
-        # ----------------------------
+        # --------------------
+        # 4. Analytics Logging
+        # --------------------
         latency = int((time.time() - start_time) * 1000)
+        matched_sources = [m["source"] for m in matches] if matches else []
 
         analytics_payload = {
             "query": query,
-            "used_embeddings": True,
-            "used_google_search": False,
-            "sources": [m["source"] for m in matches],
-            "match_count": len(matches),
+            "match_count": len(matches) if matches else 0,
+            "max_similarity": float(max_similarity),
+            "rag_used": rag_used,
+            "llm_used": llm_used,
+            "mode": mode,          # RAG_ONLY / HYBRID / LLM_ONLY
+            "sources": matched_sources,
             "latency_ms": latency
         }
 
         asyncio.create_task(log_analytics(analytics_payload))
 
-
-        # ----------------------------
-        # RETURN
-        # ----------------------------
         return {
             "query": query,
             "summary": summary,
-            "sources": [m["source"] for m in matches]
+            "sources": matched_sources,
+            "mode": mode,
+            "max_similarity": max_similarity
         }
 
-    except Exception as e:
-        return {"error": f"Server exception: {str(e)}"}
 
