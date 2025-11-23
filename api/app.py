@@ -275,6 +275,52 @@ Instructions:
     except Exception as e:
         return {"error": f"Server exception: {str(e)}"}
 
+# ----------------------------------------
+# STRIPE CHECKOUT SESSION ENDPOINT
+# ----------------------------------------
+import stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+@app.post("/create_checkout_session")
+async def create_checkout_session(request: Request):
+    body = await request.json()
+    price_id = body.get("price_id")
+
+    if not price_id:
+        return {"error": "Missing price_id"}
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url="https://nani-ai-pwa.vercel.app/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://nani-ai-pwa.vercel.app/cancel"
+        )
+        return {"checkout_url": session.url}
+
+    except Exception as e:
+        return {"error": str(e)}
+#-----------------------------------------
+#  STRIPE WEBHOOK
+#-----------------------------------------
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+
+    if event["type"] == "checkout.session.completed":
+        customer_id = event["data"]["object"]["customer"]
+
+        # Save user as active in Supabase
+        supabase.table("users").insert({
+            "stripe_customer_id": customer_id,
+            "active": True
+        }).execute()
+
+    return {"status": "ok"}
+
+
 
 
 
