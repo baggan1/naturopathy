@@ -3,3 +3,4 @@ uvicorn
 httpx
 python-dotenv
 openai>=1.2.0
+stripe>=8.0.0
