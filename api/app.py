@@ -294,8 +294,8 @@ async def create_checkout_session(request: Request):
             mode="subscription",
             payment_method_types=["card"],
     
-            # Collect customer email/name
-            customer_creation="always",
+            # Collect customer's email & billing address
+            customer_email=body.get("email"),  # optional
             billing_address_collection="auto",
 
             # FREE TRIAL (2025 method)
@@ -304,10 +304,11 @@ async def create_checkout_session(request: Request):
             },
 
             line_items=[{
-                "price": price_id,
+            "price": price_id,
             "quantity": 1
         }],
         allow_promotion_codes=True,
+        
         success_url="https://nani-ai-pwa.vercel.app/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url="https://nani-ai-pwa.vercel.app/cancel"
         )
