@@ -291,11 +291,25 @@ async def create_checkout_session(request: Request):
 
     try:
         session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
             mode="subscription",
-            line_items=[{"price": price_id, "quantity": 1}],
-            success_url="https://nani-ai-pwa.vercel.app/success?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="https://nani-ai-pwa.vercel.app/cancel"
+            payment_method_types=["card"],
+    
+            # Collect customer email/name
+            customer_creation="always",
+            billing_address_collection="auto",
+
+            # FREE TRIAL (2025 method)
+            subscription_data={
+            "trial_period_days": 1
+            },
+
+            line_items=[{
+                "price": price_id,
+            "quantity": 1
+        }],
+        allow_promotion_codes=True,
+        success_url="https://nani-ai-pwa.vercel.app/success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url="https://nani-ai-pwa.vercel.app/cancel"
         )
         return {"checkout_url": session.url}
 
