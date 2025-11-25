@@ -1,99 +1,168 @@
-# Inside /api/app.py
+# /api/app.py  (Render)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import httpx
-import os
-import json
-import time
-import asyncio
-from datetime import datetime, timedelta, timezone
+import httpx, os, json
+import time, asyncio
+from datetime import datetime, timezone
 
 from openai import OpenAI
-import stripe
 
-# ------------
+# -----------------------
 # CLIENTS & CONFIG
-# ------------
+# -----------------------
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # TODO: restrict to your domains later
+    allow_origins=["*"],   # tighten later to your domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
-
-# Preflight for Squarespace / browsers
-@app.options("/fetch_naturopathy_results")
-async def preflight_handler():
-    return {"status": "ok"}
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-SECRET = os.getenv("APP_SECRET")
+SECRET = os.getenv("APP_SECRET")   # for GPT Actions / legacy X-API-KEY
 
 EMBEDDING_API = os.getenv(
     "EMBEDDING_API",
-    "https://mystiqspice-naturopathy-embedder.hf.space/embed",
+    "https://mystiqspice-naturopathy-embedder.hf.space/embed"
 )
 
-# Stripe
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+# -----------------------
+# HELPER: Supabase Auth
+# -----------------------
 
+async def get_supabase_user(access_token: str):
+    """
+    Validate a Supabase JWT and return {id, email} or None.
+    """
+    if not access_token:
+        return None
 
-# ------------
-# HELPERS: Supabase REST
-# ------------
-async def supabase_post(path: str, json_body: dict, params: dict | None = None, prefer: str | None = None):
-    headers = {
-        "apikey": SUPABASE_SERVICE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-        "Content-Type": "application/json",
-    }
-    if prefer:
-        headers["Prefer"] = prefer
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            f"{SUPABASE_URL}{path}",
-            headers=headers,
-            json=json_body,
-            params=params,
-        )
-    return resp
-
-
-async def supabase_get(path: str, params: dict | None = None):
-    headers = {
-        "apikey": SUPABASE_SERVICE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-    }
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.get(
-            f"{SUPABASE_URL}{path}",
-            headers=headers,
-            params=params,
+            f"{SUPABASE_URL}/auth/v1/user",
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {access_token}",
+            },
         )
-    return resp
+
+    if resp.status_code != 200:
+        print("Auth user fetch failed:", resp.status_code, resp.text)
+        return None
+
+    data = resp.json()
+    return {
+        "id": data.get("id"),
+        "email": data.get("email"),
+    }
 
 
-# ------------
+async def get_profile(user_id: str):
+    """
+    Fetch profile row from Supabase 'profiles' table by user id.
+    """
+    if not user_id:
+        return None
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(
+            f"{SUPABASE_URL}/rest/v1/profiles",
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+            },
+            params={
+                "id": f"eq.{user_id}",
+                "select": "id,email,trial_start,trial_end,subscribed,stripe_customer_id",
+            },
+        )
+
+    if resp.status_code != 200:
+        print("Profile fetch failed:", resp.status_code, resp.text)
+        return None
+
+    rows = resp.json()
+    if not rows:
+        return None
+    return rows[0]
+
+
+def evaluate_access(profile: dict):
+    """
+    Given a profile row, decide access:
+      - trial_active
+      - days_left
+      - subscribed
+      - allowed (bool)
+      - message (if blocked)
+    """
+    if not profile:
+        return {
+            "allowed": False,
+            "trial_active": False,
+            "days_left": 0,
+            "subscribed": False,
+            "message": "No profile found. Please sign out and sign in again.",
+        }
+
+    subscribed = bool(profile.get("subscribed", False))
+    trial_end_raw = profile.get("trial_end")
+    trial_active = False
+    days_left = 0
+
+    if trial_end_raw:
+        # handle ISO string, possibly with Z
+        try:
+            trial_end_str = str(trial_end_raw)
+            if trial_end_str.endswith("Z"):
+                trial_end_str = trial_end_str.replace("Z", "+00:00")
+            trial_end = datetime.fromisoformat(trial_end_str)
+            now = datetime.now(timezone.utc)
+            delta = trial_end - now
+            days_left = max(delta.days, 0)
+            trial_active = days_left > 0
+        except Exception as e:
+            print("Error parsing trial_end:", e)
+
+    # Option A logic:
+    # allow IF (trial_active OR subscribed), otherwise block
+    if subscribed or trial_active:
+        return {
+            "allowed": True,
+            "trial_active": trial_active,
+            "days_left": days_left,
+            "subscribed": subscribed,
+            "message": None,
+        }
+
+    return {
+        "allowed": False,
+        "trial_active": False,
+        "days_left": 0,
+        "subscribed": subscribed,
+        "message": "Your free trial has ended. Please subscribe to continue using Nani-AI.",
+    }
+
+
+# -----------------------
 # ANALYTICS LOGGING
-# ------------
-async def log_analytics(data: dict):
+# -----------------------
+async def log_analytics(data):
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             await client.post(
                 f"{SUPABASE_URL}/rest/v1/analytics_logs",
                 headers={
                     "apikey": SUPABASE_SERVICE_KEY,
                     "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
                     "Content-Type": "application/json",
+                    "Prefer": "return=minimal",
                 },
                 json=data,
             )
@@ -101,103 +170,97 @@ async def log_analytics(data: dict):
         print("Analytics logging failed:", str(e))
 
 
-# ------------
-# FREE TRIAL ENDPOINT (Email-only)
-# ------------
-@app.post("/start_trial")
-async def start_trial(request: Request):
-    # Auth via X-API-KEY
-    auth = request.headers.get("X-API-KEY")
-    if auth != SECRET:
-        return {"error": "Unauthorized"}
+# -----------------------
+# PREFLIGHT (Squarespace/PWA)
+# -----------------------
+@app.options("/fetch_naturopathy_results")
+async def preflight_handler():
+    return {"status": "ok"}
 
-    body = await request.json()
-    email = body.get("email")
 
-    if not email:
-        return {"error": "Email is required"}
+# -----------------------
+# AUTH STATUS ENDPOINT
+# -----------------------
+@app.get("/auth/status")
+async def auth_status(request: Request):
+    """
+    Used by the PWA account panel to display:
+    - email
+    - trial_active
+    - days_left
+    - subscribed
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return {"error": "Missing or invalid Authorization header"}
 
-    # 15-day trial
-    trial_ends_at = (datetime.now(timezone.utc) + timedelta(days=15)).isoformat()
+    access_token = auth_header.split(" ", 1)[1].strip()
+    supa_user = await get_supabase_user(access_token)
+    if not supa_user:
+        return {"error": "Invalid token"}
 
-    payload = {
-        "email": email,
-        "active": True,
-        "trial_ends_at": trial_ends_at,
+    profile = await get_profile(supa_user["id"])
+    eval_result = evaluate_access(profile)
+
+    return {
+        "email": supa_user.get("email"),
+        "trial_active": eval_result["trial_active"],
+        "days_left": eval_result["days_left"],
+        "subscribed": eval_result["subscribed"],
     }
 
-    # Upsert into user_access (on_conflict=email)
-    resp = await supabase_post(
-        "/rest/v1/user_access",
-        json_body=payload,
-        params={"on_conflict": "email"},
-        prefer="resolution=merge-duplicates",
-    )
 
-    if resp.status_code not in (200, 201, 204):
-        print("start_trial error:", resp.status_code, resp.text)
-        return {"error": "Failed to start trial"}
-
-    return {"success": True, "trial_ends": trial_ends_at}
-
-
-# ------------
-# MAIN NANI-AI ENDPOINT (RAG + LLM + GATING)
-# ------------
+# -----------------------
+# MAIN NANI-AI ENDPOINT
+# -----------------------
 @app.post("/fetch_naturopathy_results")
 async def fetch_results(request: Request):
     start_time = time.time()
 
     try:
-        # ---- AUTH HEADER ----
-        auth = request.headers.get("X-API-KEY")
-        if auth != SECRET:
+        # 1. AUTHENTICATION
+        auth_header = request.headers.get("Authorization", "")
+        x_api_key = request.headers.get("X-API-KEY")
+
+        supa_user = None
+        profile = None
+        user_id = None
+        user_email = None
+
+        if auth_header.startswith("Bearer "):
+            # Normal PWA user path (Supabase Auth)
+            access_token = auth_header.split(" ", 1)[1].strip()
+            supa_user = await get_supabase_user(access_token)
+            if not supa_user:
+                return {"error": "Invalid or expired session. Please log in again."}
+
+            user_id = supa_user["id"]
+            user_email = supa_user.get("email")
+
+            # gate via trial/subscription
+            profile = await get_profile(user_id)
+            eval_result = evaluate_access(profile)
+
+            if not eval_result["allowed"]:
+                return {"error": eval_result["message"]}
+
+        elif x_api_key and x_api_key == SECRET:
+            # GPT Action / internal use
+            user_id = "system"
+            user_email = None
+            # no trial gating here
+        else:
             return {"error": "Unauthorized"}
 
+        # 2. BODY / QUERY
         body = await request.json()
-
-        email = body.get("email")
-        query = body.get("query", "").strip()
-
-        if not email:
-            return {"error": "EMAIL_REQUIRED"}
-
+        query = (body.get("query") or "").strip()
         if not query:
             return {"error": "Missing 'query' field."}
 
-        # ----------------------------
-        # 1. GATEKEEP: Check user_access in Supabase
-        # ----------------------------
-        access_resp = await supabase_get(
-            "/rest/v1/user_access",
-            params={"email": f"eq.{email}", "select": "*"},
-        )
-
-        if access_resp.status_code != 200:
-            return {"error": "ACCESS_CHECK_FAILED"}
-
-        rows = access_resp.json()
-        if not rows:
-            return {"error": "NO_ACCESS"}
-
-        record = rows[0]
-
-        # Trial expiry check (if set)
-        trial_ends_str = record.get("trial_ends_at")
-        if trial_ends_str:
-            # Normalize possible 'Z' suffix
-            trial_ends_str = trial_ends_str.replace("Z", "+00:00")
-            trial_ends = datetime.fromisoformat(trial_ends_str)
-            now = datetime.now(timezone.utc)
-            if trial_ends < now:
-                return {"error": "TRIAL_EXPIRED"}
-
-        if not record.get("active", False):
-            return {"error": "SUBSCRIPTION_REQUIRED"}
-
-        # ----------------------------
-        # 2. Embedding (HF Space)
-        # ----------------------------
+        # --------------------
+        # 3. HF Embedding
+        # --------------------
         async with httpx.AsyncClient(timeout=60.0) as client:
             emb_res = await client.post(
                 EMBEDDING_API,
@@ -208,7 +271,6 @@ async def fetch_results(request: Request):
             return {"error": "Embedding API failed", "details": emb_res.text}
 
         embed_json = emb_res.json()
-
         if "embedding" in embed_json:
             query_embedding = embed_json["embedding"]
         elif "data" in embed_json and "embedding" in embed_json["data"]:
@@ -216,6 +278,7 @@ async def fetch_results(request: Request):
         else:
             return {"error": "Invalid embedding response from HF", "raw": embed_json}
 
+        # Flatten nested vector
         if (
             isinstance(query_embedding, list)
             and len(query_embedding) == 1
@@ -223,9 +286,9 @@ async def fetch_results(request: Request):
         ):
             query_embedding = query_embedding[0]
 
-        # ----------------------------
-        # 3. Supabase Vector Search via RPC
-        # ----------------------------
+        # --------------------
+        # 4. Supabase Vector Search (RAG)
+        # --------------------
         rpc_payload = {
             "query_embedding": json.dumps(query_embedding),
             "match_threshold": body.get("match_threshold", 0.4),
@@ -251,24 +314,23 @@ async def fetch_results(request: Request):
             }
 
         matches = response.json() or []
-        similarities = [m["similarity"] for m in matches] if matches else []
+        similarities = [m.get("similarity", 0.0) for m in matches]
         max_similarity = max(similarities) if similarities else 0.0
 
+        # ----------------------------
+        # 5. HYBRID LOGIC
+        # ----------------------------
         chunks_text = "\n\n".join([f"- {m['chunk']}" for m in matches]) if matches else ""
 
-        # ----------------------------
-        # 4. HYBRID LOGIC — RAG_ONLY / HYBRID / LLM_ONLY
-        # ----------------------------
         rag_used = False
         llm_used = False
         mode = "LLM_ONLY"
 
-        # High confidence → RAG_ONLY (summarize mostly from matches)
+        # High confidence => RAG primary
         if matches and max_similarity >= 0.70:
-            mode = "RAG_ONLY"
             rag_used = True
             llm_used = True
-
+            mode = "RAG_ONLY"
             final_prompt = f"""
 You are Nani-AI.
 
@@ -279,18 +341,16 @@ Use the following retrieved text:
 {chunks_text}
 
 Instructions:
-- Summarize RAG content first
+- Summarize the retrieved content
 - Provide 4–6 bullet-point remedies
-- Include diet, lifestyle, hydrotherapy or home remedies
-- Keep the tone warm, simple, and nurturing
+- Include diet, lifestyle, hydrotherapy or simple home practices
+- Keep the tone warm and simple
 """
-
-        # Medium confidence → HYBRID
+        # Medium confidence => Hybrid
         elif matches and 0.40 <= max_similarity < 0.70:
-            mode = "HYBRID"
             rag_used = True
             llm_used = True
-
+            mode = "HYBRID"
             final_prompt = f"""
 You are Nani-AI.
 
@@ -298,41 +358,36 @@ User query:
 {query}
 
 We found related information but confidence is moderate.
-Blend retrieved naturopathy text with your own ayurveda reasoning.
+Blend retrieved naturopathy text with your own ayurvedic reasoning.
 
 Retrieved text:
 {chunks_text}
 
 Instructions:
-- Start with the best RAG insights
-- Add LLM enhancements to fill gaps
-- Provide 4–6 simple remedies
-- Include food, herbs, habits, and home practices
+- Start with the best information from the retrieved text
+- Add LLM reasoning to fill gaps
+- Provide 4–6 simple, safe remedies
+- Include food, herbs, habits and daily practices
 """
-
-        # Low / no matches → LLM_ONLY
+        # Low/no RAG => Pure LLM
         else:
-            mode = "LLM_ONLY"
             rag_used = False
             llm_used = True
-
+            mode = "LLM_ONLY"
             final_prompt = f"""
 You are Nani-AI.
 
-No reliable matches were found in the database for:
+No reliable text matches were found in the RAG database for:
 {query}
 
 Generate an ayurveda + naturopathy–based answer from scratch.
 
 Instructions:
 - Provide 4–6 bullet-point remedies
-- Include diet, herbs, lifestyle, and home treatments
+- Include diet, herbs, lifestyle, and gentle home treatments
 - Keep it simple, safe, and practical
 """
 
-        # ----------------------------
-        # 5. Call OpenAI LLM
-        # ----------------------------
         ai_res = client_ai.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": final_prompt}],
@@ -347,10 +402,10 @@ Instructions:
 
         summary = raw_summary + "\n\n---\n" + DISCLAIMER
 
-        # ----------------------------
+        # --------------------
         # 6. Analytics Logging
-        # ----------------------------
-        latency_ms = int((time.time() - start_time) * 1000)
+        # --------------------
+        latency = int((time.time() - start_time) * 1000)
         matched_sources = [m["source"] for m in matches] if matches else []
 
         analytics_payload = {
@@ -361,7 +416,9 @@ Instructions:
             "rag_used": rag_used,
             "llm_used": llm_used,
             "mode": mode,
-            "latency_ms": latency_ms,
+            "latency_ms": latency,
+            "user_id": user_id,
+            "user_email": user_email,
         }
 
         asyncio.create_task(log_analytics(analytics_payload))
@@ -371,82 +428,12 @@ Instructions:
             "summary": summary,
             "sources": matched_sources,
             "match_count": len(matches),
-            "max_similarity": float(max_similarity),
+            "max_similarity": max_similarity,
             "rag_used": rag_used,
             "llm_used": llm_used,
             "mode": mode,
         }
 
     except Exception as e:
+        print("Server exception:", str(e))
         return {"error": f"Server exception: {str(e)}"}
-
-
-# ------------
-# STRIPE CHECKOUT (for future paid subscription)
-# ------------
-@app.post("/create_checkout_session")
-async def create_checkout_session(request: Request):
-    auth = request.headers.get("X-API-KEY")
-    if auth != SECRET:
-        return {"error": "Unauthorized"}
-
-    body = await request.json()
-    price_id = body.get("price_id")
-    email = body.get("email")  # optional
-
-    if not price_id:
-        return {"error": "Missing price_id"}
-
-    try:
-        session = stripe.checkout.Session.create(
-            mode="subscription",
-            payment_method_types=["card"],
-            billing_address_collection="auto",
-            customer_email=email,
-            subscription_data={
-                # You can add paid trial here later if desired
-                # "trial_period_days": 15,
-            },
-            line_items=[{"price": price_id, "quantity": 1}],
-            allow_promotion_codes=True,
-            success_url="https://nani-ai-pwa.vercel.app/success?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="https://nani-ai-pwa.vercel.app/cancel",
-        )
-        return {"checkout_url": session.url}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-# ------------
-# STRIPE WEBHOOK (mark users active after payment)
-# ------------
-@app.post("/stripe/webhook")
-async def stripe_webhook(request: Request):
-    payload = await request.body()
-
-    try:
-        event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
-    except Exception as e:
-        return {"error": f"Webhook parse error: {str(e)}"}
-
-    if event["type"] == "checkout.session.completed":
-        session_obj = event["data"]["object"]
-        email = session_obj.get("customer_details", {}).get("email")
-
-        if email:
-            # Mark user as active paid user
-            payload = {
-                "email": email,
-                "active": True,
-            }
-            # Upsert on email
-            resp = await supabase_post(
-                "/rest/v1/user_access",
-                json_body=payload,
-                params={"on_conflict": "email"},
-                prefer="resolution=merge-duplicates",
-            )
-            if resp.status_code not in (200, 201, 204):
-                print("stripe webhook user_access upsert failed:", resp.status_code, resp.text)
-
-    return {"status": "ok"}
