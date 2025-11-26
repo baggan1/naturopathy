@@ -326,7 +326,7 @@ async def fetch_results(request: Request):
   - Keep it friendly, safe, and actionable
   """
 
-     else:
+    else:
         mode = "LLM_ONLY"
         rag_used = False
         final_prompt = f"""
