@@ -313,7 +313,7 @@ async def fetch_results(request: Request):
   {query}
 
   We found related (but not perfect) text:
-   chunks_text}
+  {chunks_text}
 
   Instructions:
   - Start from RAG content
