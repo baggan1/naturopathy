@@ -319,32 +319,57 @@ async def fetch_results(request: Request):
         mode = "RAG_ONLY"
         rag_used = True
         final_prompt = f"""
-You are Nani-AI...
+You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
 
-User query: {query}
+User query:
+{query}
 
-Use these authoritative naturopathy documents:
+Use the following retrieved naturopathy text as your primary source:
 {chunks_text}
 
-Give 4–6 practical bullet remedies...
+Instructions:
+- Summarize the retrieved content first
+- Provide 4–6 clearly separated bullet-point remedies
+- Include food, herbs, lifestyle, and simple home practices
+- Keep the language gentle, simple, and practical
+
 """
     elif matches and max_sim >= 0.40:
         mode = "HYBRID"
         rag_used = True
         final_prompt = f"""
-You are Nani-AI...
+You are Nani-AI, a naturopathy + ayurveda assistant.
 
-Blend RAG with your own knowledge.
-Matches:
+User query:
+{query}
+
+We found related but not perfect matches. Blend them with your own clinical-style reasoning.
+
+Retrieved text:
 {chunks_text}
+
+Instructions:
+- Start from the best RAG insights you see
+- Add your own ayurvedic & naturopathic reasoning to fill gaps
+- Provide 4–6 bullet-point remedies
+- Include food, herbs, daily routine, and home treatments
+- Keep it safe, non-alarming, and easy to follow
 """
     else:
         mode = "LLM_ONLY"
         final_prompt = f"""
-You are Nani-AI…
-No reliable matches found.
+You are Nani-AI, an Ayurvedic + Naturopathy wellness guide.
 
-Generate remedies based on Ayurveda + naturopathy only.
+No reliable matches were found in the database for:
+{query}
+
+Generate a fresh answer from your ayurveda + naturopathy knowledge.
+
+Instructions:
+- Provide 4–6 bullet-point remedies
+- Include diet, herbs, lifestyle, and home treatments
+- Focus on gentle, preventive, non-emergency guidance
+- Avoid mentioning 'database' or 'documents'
 """
 
     # ====================================================================================
