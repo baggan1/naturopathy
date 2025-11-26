@@ -250,8 +250,14 @@ async def fetch_results(request: Request):
     # -------------------------
     step_vec = time.time()
 
+    # Ensure embedding is list[float]
+    if not isinstance(embedding, list):
+        raise HTTPException(status_code=500, detail="Embedding format invalid")
+
+    print("Embedding size:", len(embedding))
+
     rpc_payload = {
-        "query_embedding": json.dumps(embedding),
+        "query_embedding": embedding,  # MUST be float[]
         "match_threshold": body.get("match_threshold", 0.4),
         "match_count": body.get("match_count", 3),
     }
@@ -268,12 +274,16 @@ async def fetch_results(request: Request):
         )
 
     if resp.status_code != 200:
+        print("RPC Error:", resp.text)
         raise HTTPException(status_code=500, detail="Vector search failure")
 
     matches = resp.json()
+    print("Vector search returned", len(matches), "matches")
+
     similarities = [m["similarity"] for m in matches] if matches else []
     max_sim = max(similarities) if similarities else 0
-   
+    
+    print("Max similarity:", max_sim)
     print(f"STEP 4: Vector Search: {time.time() - step_vec:.2f} sec")
 
     # ----------------------------------------------
