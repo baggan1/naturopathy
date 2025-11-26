@@ -273,73 +273,74 @@ async def fetch_results(request: Request):
     matches = resp.json()
     similarities = [m["similarity"] for m in matches] if matches else []
     max_sim = max(similarities) if similarities else 0
-
+   
     print(f"STEP 4: Vector Search: {time.time() - step_vec:.2f} sec")
 
-    chunks_text = "\n\n".join([m["chunk"] for m in matches]) if matches else ""
+    # ----------------------------------------------
+    # TRIM CHUNKS FOR SPEED
+    # ----------------------------------------------
+    chunks_text = "\n\n".join([m["chunk"][:600] for m in matches]) if matches else ""
 
-    # ---------------------------------------------------
-    # PROMPT SELECTION (UPDATED)
-    # ---------------------------------------------------
+
+    # ----------------------------------------------
+    # PROMPT GENERATION (optimized)
+    # ----------------------------------------------
     if matches and max_sim >= 0.70:
         mode = "RAG_ONLY"
-        rag_used = True
         final_prompt = f"""
-You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
+  You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
 
-User query:
-{query}
+  User query:
+  {query}
 
-Use the following retrieved naturopathy text as your primary source:
-{chunks_text}
+  Primary text to reference:
+  {chunks_text}
 
-Instructions:
-- Summarize the retrieved content first
-- Provide 4–6 clearly separated bullet-point remedies
-- Include food, herbs, lifestyle, and simple home practices
-- Keep the language gentle, simple, and practical
-- Instead of using Vata, Pitta, Kapha terms in Ayurveda, use Wind, Fire, Water or Earth energy instead.
-"""
+  Instructions:
+  - Start with a gentle summary of the matched text
+  - Provide 4–6 short, practical bullet remedies
+  - Include diet, herbs, lifestyle & home treatments
+  - Use Wind/Fire/Water/Earth energies instead of Vata/Pitta/Kapha
+  - Keep tone simple, soothing, and preventative
+  """
 
     elif matches and max_sim >= 0.40:
         mode = "HYBRID"
-        rag_used = True
         final_prompt = f"""
-You are Nani-AI, a naturopathy + ayurveda assistant.
+  You are Nani-AI, a naturopathy + ayurveda assistant.
 
-User query:
-{query}
+  User query:
+  {query}
 
-Retrieved text (not perfect match, blend with reasoning):
-{chunks_text}
+  We found related (but not perfect) text:
+   chunks_text}
 
-Instructions:
-- Start from RAG insights
-- Add ayurvedic & naturopathic reasoning
-- Provide 4–6 bullet remedies
-- Include food, herbs, routines, home treatments
-- Use Wind/Fire/Water/Earth energy instead of Vata/Pitta/Kapha
-- Keep the tone gentle, safe, and practical
-"""
+  Instructions:
+  - Start from RAG content
+  - Add your own Ayurvedic reasoning
+  - Give 4–6 bullet remedies
+  - Include food, herbs, routines, and simple home therapy
+  - Use Wind/Fire/Water/Earth energies
+  - Keep it friendly, safe, and actionable
+  """
 
-    else:
+     else:
         mode = "LLM_ONLY"
-        rag_used = False
         final_prompt = f"""
-You are Nani-AI, an Ayurvedic + Naturopathy wellness guide.
+ You are Nani-AI, an Ayurveda + Naturopathy guide.
 
-No reliable matches were found for:
-{query}
+ No RAG matches were found for:
+ {query}
 
-Generate a fresh answer using ayurveda + naturopathy.
+ Please produce:
+ - 4–6 bullet-point natural remedies
+ - Include diet, herbs, lifestyle, home practices
+ - Use Wind/Fire/Water/Earth energies
+ - Keep it gentle, non-medical, supportive
+ """
 
-Instructions:
-- Provide 4–6 bullet-point remedies
-- Include diet, herbs, lifestyle, and home treatments
-- Focus on gentle, preventive, non-emergency guidance
-- Avoid mentioning 'database' or 'documents'
-- Use Wind/Fire/Water/Earth energies instead of Vata/Pitta/Kapha
-"""
+    # Trim giant prompt if needed
+    final_prompt = final_prompt[:5000]
 
     # ---------------------------------------------------
     # LLM Completion (WITH TEMPERATURE TUNING)
@@ -347,9 +348,9 @@ Instructions:
     step_llm = time.time()
 
     ai = client_ai.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.35,            # ⭐ tuned temperature
-        max_tokens=600,              # ⭐ stable response length
+        model="gpt-4o-mini-quick",
+        temperature=0.2,            # ⭐ tuned temperature
+        max_tokens=350,              # ⭐ stable response length
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0,
