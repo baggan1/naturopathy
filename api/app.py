@@ -223,6 +223,7 @@ async def fetch_results(request: Request):
     - Checks trial/subscription status
     """
     start = time.time()
+    print("STEP: Start")
 
     # --- X-API-KEY security ---
     if request.headers.get("X-API-KEY") != SECRET:
@@ -278,7 +279,8 @@ async def fetch_results(request: Request):
 
     if isinstance(embedding, list) and len(embedding) == 1 and isinstance(embedding[0], list):
         embedding = embedding[0]
-
+    
+    print("STEP: Embedding", time.time() - start_step)
     # ====================================================================================
     # 2. VECTOR SEARCH
     # ====================================================================================
@@ -310,8 +312,9 @@ async def fetch_results(request: Request):
     llm_used = True
     mode = "LLM_ONLY"
 
-    chunks_text = "\n\n".join([m["chunk"] for m in matches]) if matches else ""
-
+    chunks_text = "\n\n".join([m["chunk"][:800] for m in matches]) if matches else ""
+    
+    print("STEP: Vector Search", time.time() - start_step)
     # ====================================================================================
     # 3. PROMPT SELECTION
     # ====================================================================================
@@ -332,6 +335,7 @@ Instructions:
 - Provide 4–6 clearly separated bullet-point remedies
 - Include food, herbs, lifestyle, and simple home practices
 - Keep the language gentle, simple, and practical
+- Instead of using Vata, Pitta, Kapha terms in Ayurveda, use Wind, Fire, Water or Earth energy instead.
 
 """
     elif matches and max_sim >= 0.40:
@@ -353,6 +357,7 @@ Instructions:
 - Add your own ayurvedic & naturopathic reasoning to fill gaps
 - Provide 4–6 bullet-point remedies
 - Include food, herbs, daily routine, and home treatments
+- Instead of using Vata, Pitta, Kapha terms in Ayurveda, use Wind, Fire, Water or Earth energy instead.
 - Keep it safe, non-alarming, and easy to follow
 """
     else:
@@ -370,6 +375,7 @@ Instructions:
 - Include diet, herbs, lifestyle, and home treatments
 - Focus on gentle, preventive, non-emergency guidance
 - Avoid mentioning 'database' or 'documents'
+- Instead of using Vata, Pitta, Kapha terms in Ayurveda, use Wind, Fire, Water or Earth energy instead.
 """
 
     # ====================================================================================
@@ -382,7 +388,8 @@ Instructions:
     summary = ai.choices[0].message.content
 
     summary += "\n\n⚠️ Disclaimer: Nani-AI provides general wellness guidance..."
-
+    
+    print("STEP: OpenAI Completion", time.time() - start_step)
     # ====================================================================================
     # 5. ANALYTICS
     # ====================================================================================
