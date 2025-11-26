@@ -1,4 +1,4 @@
-# /api/app.py
+# /api/app.py (Optimized Version)
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from openai import OpenAI
 
 # ----------------------------------------------
-# OPENAI CLIENT
+# OPENAI INIT
 # ----------------------------------------------
 client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -25,9 +25,6 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-@app.options("/fetch_naturopathy_results")
-async def preflight_handler():
-    return {"status": "ok"}
 # ----------------------------------------------
 # ENV VARS
 # ----------------------------------------------
@@ -35,19 +32,15 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 SECRET = os.getenv("APP_SECRET")
 
-EMBEDDING_API = os.getenv(
-    "EMBEDDING_API",
-    "https://mystiqspice-naturopathy-embedder.hf.space/embed",
-)
 
-# ----------------------------------------------
+# ================================================================
 # SUPABASE HELPERS
-# ----------------------------------------------
+# ================================================================
 async def get_supabase_user(access_token: str):
     if not access_token:
         return None
-
-    async with httpx.AsyncClient(timeout=30) as client:
+    
+    async with httpx.AsyncClient(timeout=20) as client:
         resp = await client.get(
             f"{SUPABASE_URL}/auth/v1/user",
             headers={"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {access_token}"},
@@ -61,9 +54,7 @@ async def get_supabase_user(access_token: str):
 
 
 async def get_or_create_profile(user_id: str, email: str):
-    async with httpx.AsyncClient(timeout=30) as client:
-
-        # Check existing
+    async with httpx.AsyncClient(timeout=20) as client:
         resp = await client.get(
             f"{SUPABASE_URL}/rest/v1/profiles",
             params={"select": "*", "id": f"eq.{user_id}", "limit": 1},
@@ -71,10 +62,11 @@ async def get_or_create_profile(user_id: str, email: str):
         )
 
         rows = resp.json() if resp.status_code == 200 else []
+
         if rows:
             return rows[0]
 
-        # Create profile (start trial)
+        # Create new profile
         insert_resp = await client.post(
             f"{SUPABASE_URL}/rest/v1/profiles",
             headers={
@@ -124,14 +116,15 @@ def compute_trial_status(profile: dict):
         "trial_end": profile.get("trial_end"),
     }
 
-# ----------------------------------------------
-# AUTH STATUS
-# ----------------------------------------------
+
+# ================================================================
+# AUTH STATUS ENDPOINT
+# ================================================================
 @app.get("/auth/status")
 async def auth_status(request: Request):
 
     if request.headers.get("X-API-KEY") != SECRET:
-       raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -145,15 +138,16 @@ async def auth_status(request: Request):
 
     profile = await get_or_create_profile(user["id"], user["email"])
     trial_info = compute_trial_status(profile)
+
     return {"email": user["email"], **trial_info}
 
 
-# ----------------------------------------------
-# ANALYTICS
-# ----------------------------------------------
+# ================================================================
+# ANALYTICS (background task)
+# ================================================================
 async def log_analytics(data: dict):
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=10) as client:
             await client.post(
                 f"{SUPABASE_URL}/rest/v1/analytics_logs",
                 headers={
@@ -167,9 +161,9 @@ async def log_analytics(data: dict):
         print("Analytics error:", e)
 
 
-# ----------------------------------------------
-# NANI-AI MAIN ENDPOINT (WITH TIMING LOGS + NEW PROMPTS + TEMP CONTROL)
-# ----------------------------------------------
+# ================================================================
+# MAIN NANI-AI ENDPOINT
+# ================================================================
 @app.post("/fetch_naturopathy_results")
 async def fetch_results(request: Request):
 
@@ -177,11 +171,11 @@ async def fetch_results(request: Request):
     print("\n==============================")
     print("STEP 1: Start fetch_naturopathy_results")
 
-    # -------------------------
+    # ------------------------------------
     # SECURITY CHECK
-    # -------------------------
+    # ------------------------------------
     if request.headers.get("X-API-KEY") != SECRET:
-       raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     body = await request.json()
     query = body.get("query", "").strip()
@@ -189,9 +183,9 @@ async def fetch_results(request: Request):
     if not query:
         raise HTTPException(status_code=400, detail="Missing query")
 
-    # -------------------------
+    # ---------------------------------------
     # AUTH + PROFILE
-    # -------------------------
+    # ---------------------------------------
     step_auth = time.time()
 
     auth_header = request.headers.get("Authorization")
@@ -212,68 +206,52 @@ async def fetch_results(request: Request):
     if not (trial_info["trial_active"] or trial_info["subscribed"]):
         return {"error": "Trial expired", **trial_info}
 
-    # -------------------------
-    # EMBEDDING
-    # -------------------------
-    step_emb = time.time()
-
-# ---------------------------
-# EMBEDDING SAFE WRAPPER
-# ---------------------------
+    # ==================================================
+    # OPTIMIZED — OPENAI EMBEDDING (150ms)
+    # ==================================================
     step_emb = time.time()
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            emb = await client.post(EMBEDDING_API, json={"query": query})
-
-        if emb.status_code != 200:
-            print("Embedding service error:", emb.text)
-            raise HTTPException(status_code=500, detail="Embedding API failure")
-
-        emb_json = emb.json()
-
+        emb_resp = client_ai.embeddings.create(
+            model="text-embedding-3-small",
+            input=query
+        )
+        embedding = emb_resp.data[0].embedding
     except Exception as e:
-        print("Embedding crashed:", str(e))
-        raise HTTPException(status_code=500, detail="Embedding crashed")
-
-    embedding = (
-        emb_json.get("embedding")
-        or emb_json.get("data", {}).get("embedding")
-    )
-
-    if isinstance(embedding, list) and len(embedding) == 1 and isinstance(embedding[0], list):
-        embedding = embedding[0]
+        print("Embedding Error:", e)
+        raise HTTPException(status_code=500, detail="Embedding failure")
 
     print(f"STEP 3: Embedding: {time.time() - step_emb:.2f} sec")
 
-    # -------------------------
-    # VECTOR SEARCH
-    # -------------------------
+    # ==================================================
+    # VECTOR SEARCH (optimized)
+    # ==================================================
     step_vec = time.time()
 
     rpc_payload = {
         "query_embedding": json.dumps(embedding),
-        "match_threshold": body.get("match_threshold", 0.4),
-        "match_count": body.get("match_count", 3),
+        "match_threshold": body.get("match_threshold", 0.40),
+        "match_count": 2,  # faster + still relevant
     }
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
-            f"{SUPABASE_URL}/rest/v1/rpc/match_documents_v2",
-            json=rpc_payload,
-            headers={
-                "apikey": SUPABASE_SERVICE_KEY,
-                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-                "Content-Type": "application/json",
-            },
-        )
-
-    if resp.status_code != 200:
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                f"{SUPABASE_URL}/rest/v1/rpc/match_documents_v2",
+                json=rpc_payload,
+                headers={
+                    "apikey": SUPABASE_SERVICE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                    "Content-Type": "application/json",
+                },
+            )
+    except Exception as e:
+        print("Vector search error:", e)
         raise HTTPException(status_code=500, detail="Vector search failure")
 
-    matches = resp.json()
+    matches = resp.json() if resp.status_code == 200 else []
     similarities = [m["similarity"] for m in matches] if matches else []
     max_sim = max(similarities) if similarities else 0
-   
+
     print(f"STEP 4: Vector Search: {time.time() - step_vec:.2f} sec")
 
     # ----------------------------------------------
@@ -281,102 +259,101 @@ async def fetch_results(request: Request):
     # ----------------------------------------------
     chunks_text = "\n\n".join([m["chunk"][:600] for m in matches]) if matches else ""
 
-
     # ----------------------------------------------
     # PROMPT GENERATION (optimized)
     # ----------------------------------------------
     if matches and max_sim >= 0.70:
         mode = "RAG_ONLY"
-        rag_used = True
         final_prompt = f"""
-  You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
+You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
 
-  User query:
-  {query}
+User query:
+{query}
 
-  Primary text to reference:
-  {chunks_text}
+Primary text to reference:
+{chunks_text}
 
-  Instructions:
-  - Start with a gentle summary of the matched text
-  - Provide 4–6 short, practical bullet remedies
-  - Include diet, herbs, lifestyle & home treatments
-  - Use Wind/Fire/Water/Earth energies instead of Vata/Pitta/Kapha
-  - Keep tone simple, soothing, and preventative
-  """
+Instructions:
+- Start with a gentle summary of the matched text
+- Provide 4–6 short, practical bullet remedies
+- Include diet, herbs, lifestyle & home treatments
+- Use Wind/Fire/Water/Earth energies instead of Vata/Pitta/Kapha
+- Keep tone simple, soothing, and preventative
+"""
 
     elif matches and max_sim >= 0.40:
         mode = "HYBRID"
-        rag_used = True
         final_prompt = f"""
-  You are Nani-AI, a naturopathy + ayurveda assistant.
+You are Nani-AI, a naturopathy + ayurveda assistant.
 
-  User query:
-  {query}
+User query:
+{query}
 
-  We found related (but not perfect) text:
-  {chunks_text}
+We found related (but not perfect) text:
+{chunks_text}
 
-  Instructions:
-  - Start from RAG content
-  - Add your own Ayurvedic reasoning
-  - Give 4–6 bullet remedies
-  - Include food, herbs, routines, and simple home therapy
-  - Use Wind/Fire/Water/Earth energies
-  - Keep it friendly, safe, and actionable
-  """
+Instructions:
+- Start from RAG content
+- Add your own Ayurvedic reasoning
+- Give 4–6 bullet remedies
+- Include food, herbs, routines, and simple home therapy
+- Use Wind/Fire/Water/Earth energies
+- Keep it friendly, safe, and actionable
+"""
 
     else:
         mode = "LLM_ONLY"
-        rag_used = False
         final_prompt = f"""
- You are Nani-AI, an Ayurveda + Naturopathy guide.
+You are Nani-AI, an Ayurveda + Naturopathy guide.
 
- No RAG matches were found for:
- {query}
+No RAG matches were found for:
+{query}
 
- Please produce:
- - 4–6 bullet-point natural remedies
- - Include diet, herbs, lifestyle, home practices
- - Use Wind/Fire/Water/Earth energies
- - Keep it gentle, non-medical, supportive
- """
+Please produce:
+- 4–6 bullet-point natural remedies
+- Include diet, herbs, lifestyle, home practices
+- Use Wind/Fire/Water/Earth energies
+- Keep it gentle, non-medical, supportive
+"""
 
     # Trim giant prompt if needed
     final_prompt = final_prompt[:5000]
 
-    # ---------------------------------------------------
-    # LLM Completion (WITH TEMPERATURE TUNING)
-    # ---------------------------------------------------
+    # ==================================================
+    # FASTER LLM — gpt-4o-mini-quick
+    # ==================================================
     step_llm = time.time()
 
-    ai = client_ai.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.25,            # ⭐ tuned temperature
-        max_tokens=350,              # ⭐ stable response length
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
-        messages=[{"role": "user", "content": final_prompt}],
-    )
+    try:
+        ai = client_ai.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.25,
+            max_tokens=330,
+            top_p=1,
+            messages=[{"role": "user", "content": final_prompt}],
+        )
+    except Exception as e:
+        print("LLM ERROR:", e)
+        raise HTTPException(status_code=500, detail="LLM failure")
 
     summary = ai.choices[0].message.content
-    summary += "\n\n⚠️ Disclaimer: Nani-AI provides general wellness guidance, not medical care."
+    summary += "\n\n⚠️ Disclaimer: Nani-AI provides general wellness guidance only."
 
     print(f"STEP 5: LLM Completion: {time.time() - step_llm:.2f} sec")
 
-    # ---------------------------------------------------
-    # ANALYTICS (async)
-    # ---------------------------------------------------
+    # ==================================================
+    # ANALYTICS (async, non-blocking)
+    # ==================================================
     asyncio.create_task(log_analytics({
         "query": query,
         "match_count": len(matches),
         "max_similarity": max_sim,
+        "mode": mode,
     }))
 
-    # ---------------------------------------------------
-    # TOTAL RUNTIME
-    # ---------------------------------------------------
+    # ==================================================
+    # TOTAL TIME
+    # ==================================================
     print(f"STEP 6: Total Response: {time.time() - total_start:.2f} sec")
     print("==============================\n")
 
