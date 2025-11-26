@@ -351,8 +351,8 @@ async def fetch_results(request: Request):
     step_llm = time.time()
 
     ai = client_ai.chat.completions.create(
-        model="gpt-4o-mini-quick",
-        temperature=0.2,            # ⭐ tuned temperature
+        model="gpt-4o-mini",
+        temperature=0.25,            # ⭐ tuned temperature
         max_tokens=350,              # ⭐ stable response length
         top_p=1,
         frequency_penalty=0,
