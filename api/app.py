@@ -1,6 +1,6 @@
 # /api/app.py
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import httpx, os, json, time, asyncio
 from datetime import datetime, timezone
@@ -24,11 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
-
-@app.options("/{path:path}")
-async def preflight():
-    return {"status": "ok"}
-
 
 # -------------------------
 # ENV VARS
@@ -227,7 +222,7 @@ async def fetch_results(request: Request):
 
     # --- X-API-KEY security ---
     if request.headers.get("X-API-KEY") != SECRET:
-        return {"error": "Unauthorized"}
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     # --- Body ---
     body = await request.json()
