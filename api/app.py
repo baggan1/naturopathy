@@ -287,6 +287,7 @@ async def fetch_results(request: Request):
     # ----------------------------------------------
     if matches and max_sim >= 0.70:
         mode = "RAG_ONLY"
+        rag_used = True
         final_prompt = f"""
   You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
 
@@ -306,6 +307,7 @@ async def fetch_results(request: Request):
 
     elif matches and max_sim >= 0.40:
         mode = "HYBRID"
+        rag_used = True
         final_prompt = f"""
   You are Nani-AI, a naturopathy + ayurveda assistant.
 
@@ -326,6 +328,7 @@ async def fetch_results(request: Request):
 
      else:
         mode = "LLM_ONLY"
+        rag_used = False
         final_prompt = f"""
  You are Nani-AI, an Ayurveda + Naturopathy guide.
 
