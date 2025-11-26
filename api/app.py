@@ -25,6 +25,9 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+@app.options("/fetch_naturopathy_results")
+async def preflight_handler():
+    return {"status": "ok"}
 # ----------------------------------------------
 # ENV VARS
 # ----------------------------------------------
@@ -214,13 +217,24 @@ async def fetch_results(request: Request):
     # -------------------------
     step_emb = time.time()
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        emb = await client.post(EMBEDDING_API, json={"query": query})
+# ---------------------------
+# EMBEDDING SAFE WRAPPER
+# ---------------------------
+    step_emb = time.time()
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            emb = await client.post(EMBEDDING_API, json={"query": query})
 
-    if emb.status_code != 200:
-        raise HTTPException(status_code=500, detail="Embedding API failure")
+        if emb.status_code != 200:
+            print("Embedding service error:", emb.text)
+            raise HTTPException(status_code=500, detail="Embedding API failure")
 
-    emb_json = emb.json()
+        emb_json = emb.json()
+
+    except Exception as e:
+        print("Embedding crashed:", str(e))
+        raise HTTPException(status_code=500, detail="Embedding crashed")
+
     embedding = (
         emb_json.get("embedding")
         or emb_json.get("data", {}).get("embedding")
