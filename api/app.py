@@ -289,7 +289,7 @@ async def fetch_results(request: Request):
     # ----------------------------------------------
     # TRIM CHUNKS FOR SPEED
     # ----------------------------------------------
-    chunks_text = "\n\n".join([m["chunk"][:600] for m in matches]) if matches else ""
+    chunks_text = "\n\n".join([m["chunk"] for m in matches]) if matches else ""
 
 
     # ----------------------------------------------
