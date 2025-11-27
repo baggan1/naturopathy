@@ -337,8 +337,9 @@ Respond using EXACTLY this structure (same headings + emojis, but YOU must creat
 - 3–5 bullet points of realistic routines, movement, sleep, and habits that support healing for {query}.
 ---
 
-🌬️ Energy Insight (Ayurveda)  
-Explain the imbalance using **Air / Fire / Water / Earth** energies ONLY (no Sanskrit dosha names).  
+🌬️ Ayurveda Explanation
+Describe the energy imbalance in {query} using Vata as Air, Space, Gas, Constipation, Anxiety  / Pitta as Excess Heat, Inflammation, Acidity, Rashes / Kapha as Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
+
 Make the reasoning feel personal to {query}.
 
 Rules:
@@ -390,8 +391,8 @@ Respond using EXACTLY this structure (same headings + emojis; you create the con
 - 3–5 realistic changes in routine that support healing for {query}.
 ---
 
-🌬️ Energy Insight (Ayurveda)  
-Describe the pattern in terms of Air / Fire / Water / Earth energies only.
+🌬️ Ayurveda Explanation
+Describe the energy imbalance in {query} using Vata as Air, Space, Gas, Constipation, Anxiety  / Pitta as Excess Heat, Inflammation, Acidity, Rashes / Kapha as Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
 
 Rules:
 - Do NOT reuse the same remedies across unrelated conditions.
@@ -432,8 +433,8 @@ Respond using THIS structure (you create the content):
 - 3–5 bullets around movement, rest, work, and daily rhythm tailored to {query}.
 ---
 
-🌬️ Energy Insight (Ayurveda)  
-Describe the energy pattern for {query} using Air / Fire / Water / Earth.
+🌬️ Ayurveda Explanation
+Describe the energy imbalance in {query} using Vata as Air, Space, Gas, Constipation, Anxiety  / Pitta as Excess Heat, Inflammation, Acidity, Rashes / Kapha as Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
 
 Rules:
 - Do NOT copy remedies used for entirely different conditions.
