@@ -312,9 +312,9 @@ Your instructions:
 • Use calm, simple body-science: circulation, hydration, digestion, hormone shifts, liver load, tension, inflammation.  
 • Integrate Ayurveda by identifying energy imbalance using the plain-English patterns below (NO Sanskrit terms):
 
-    • Vata(Air & Space) → movement, gas, bloating, dryness, constipation, anxiety  
-    • Pitta(Fire & Water) → heat, inflammation, acidity, irritation, rashes  
-    • Kapha(Water & Earth) → heaviness, mucus, sluggishness, congestion, lethargy  
+    • Vata > Air & Space → movement, gas, bloating, dryness, constipation, anxiety  
+    • Pitta > Fire & Water → heat, inflammation, acidity, irritation, rashes  
+    • Kapha > Water & Earth → heaviness, mucus, sluggishness, congestion, lethargy  
 
 Respond in this structure:
 
@@ -361,9 +361,9 @@ Your instructions:
 • Use calm, non-alarming language.  
 • Identify the energy imbalance using ONLY these patterns:
 
-    • Vata(Air & Space) → movement, gas, bloating, dryness, constipation, anxiety  
-    • Pitta(Fire & Water) → heat, inflammation, acidity, irritation, rashes  
-    • Kapha(Water & Earth) → heaviness, mucus, sluggishness, congestion, lethargy  
+    • Vata > Air & Space → movement, gas, bloating, dryness, constipation, anxiety  
+    • Pitta > Fire & Water → heat, inflammation, acidity, irritation, rashes  
+    • Kapha > Water & Earth → heaviness, mucus, sluggishness, congestion, lethargy 
 
 Respond using this structure:
 
@@ -401,9 +401,9 @@ Your instructions:
 • Use concepts like circulation, hydration, digestion, liver load, hormones, tension, inflammation.  
 • Include Ayurveda by identifying energy imbalance using ONLY these plain-English patterns:
 
-    • Vata(Air & Space) → movement, gas, bloating, dryness, constipation, anxiety  
-    • Pitta(Fire & Water) → heat, inflammation, acidity, irritation, rashes  
-    • Kapha(Water & Earth) → heaviness, mucus, sluggishness, congestion, lethargy  
+    • Vata > Air & Space → movement, gas, bloating, dryness, constipation, anxiety  
+    • Pitta > Fire & Water → heat, inflammation, acidity, irritation, rashes  
+    • Kapha > Water & Earth → heaviness, mucus, sluggishness, congestion, lethargy 
 
 Respond using this structure:
 
