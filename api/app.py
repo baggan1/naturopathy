@@ -296,7 +296,8 @@ async def fetch_results(request: Request):
         chunks_text = "\n\n".join([m["chunk"] for m in matches]) if matches else ""
         final_prompt = f"""
   You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
-  Below is related naturopathy text from your knowledgebase:
+   Below is highly relevant naturopathy text from the knowledgebase.  
+   You MUST base your answer primarily on this text:
 
  <<<CHUNKS_TEXT>>>
   {chunks_text}
@@ -305,53 +306,131 @@ async def fetch_results(request: Request):
   User query:
   {query}
   
-  Instructions:
-  - Base your answer STRICTLY on the retrieved text above.
-  - Do NOT invent facts not present in the retrieved text.
-  - Summarize key insights from the retrieved text.
-  - Then provide 4–6 natural remedies fully grounded in the retrieved text.
-  - Include diet, herbs, lifestyle & home therapy.
-  - Focus on Naturopathy and then use Ayurveda for explanation.
-  - Use Air/Fire/Water/Earth energies instead of Vata/Pitta/Kapha
-  """
+  Your response format MUST follow this structure:
+
+    🌿 **Nani-AI Wellness Guidance**
+
+    ✨ **Summary**  
+    (1–3 lines summarizing retrieved content)
+
+    ---
+
+    💚 **Natural Remedies for {query}**
+
+    🟢 **1. Dietary Support**  
+    • (short bullets)
+
+    🟢 **2. Herbal Support**  
+    • (short bullets)
+
+    🟢 **3. Home Therapy**  
+    • (short bullets)
+
+    🟢 **4. Lifestyle & Routine**  
+    • (short bullets)
+
+    ---
+
+    🌬️ **Energy Insight (Ayurveda)**  
+    Explain imbalance using Air / Fire / Water / Earth energies only.
+
+    ---
+
+    ⚠️ *Nani-AI provides gentle wellness guidance only — not medical care.*
+
+    Rules:
+    - Keep bullets short & practical  
+    - Use emojis exactly as shown  
+    - Base remedies STRICTLY on the retrieved text unless missing  
+    - Use Air/Fire/Water/Earth energies instead of Vata/Pitta/Kapha 
+    """
 
     elif matches and max_sim >= 0.25:
         mode = "HYBRID"
         rag_used = True
         chunks_text = "\n\n".join([m["chunk"] for m in matches]) if matches else ""
         final_prompt = f"""
-  You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
-  Below is related naturopathy text from your knowledgebase:
+    You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
+    Below is related naturopathy text from your knowledgebase:
 
- <<<CHUNKS_TEXT>>>
-  {chunks_text}
- <<<END_CHUNKS_TEXT>>>
+    <<<CHUNKS_TEXT>>>
+        {chunks_text}
+    <<<END_CHUNKS_TEXT>>>
 
-  User query:
-  {query}
+    The user asked:
+    {query}
 
-  Instructions:
-    - Use the retrieved text as your PRIMARY ANCHOR.
-    - Add your own Ayurvedic reasoning ONLY to fill gaps.
-    - Provide 4–6 remedies referencing BOTH RAG and Ayurveda.
-    - Keep tone gentle, practical, grounded.
+    Blend the retrieved text with your own Ayurvedic reasoning and respond using EXACTLY this format:
+
+    🌿 **Nani-AI Wellness Guidance**
+
+    ✨ **Summary**
+    (short, friendly explanation)
+
+    ---
+
+    💚 **Natural Remedies for {query}**
+    🟢 **1. Dietary Support**  
+    • bullets  
+    🟢 **2. Herbal Support**  
+    • bullets  
+    🟢 **3. Home Therapy**  
+    • bullets  
+    🟢 **4. Lifestyle & Routine**  
+    • bullets  
+
+    ---
+
+    🌬️ **Energy Insight (Ayurveda)**  
+    Use Air/Fire/Water/Earth energies only.
+
+    ⚠️ *Nani-AI provides general wellness guidance only.*
+
+    Rules:
+    - Focus on Naturopathy and then use Ayurveda for explanation.
     """
-
+ 
     else:
         mode = "LLM_ONLY"
         rag_used = False
         final_prompt = f"""
- 
- No RAG matches were found for:
- {query}
+    You are Nani-AI, a warm Ayurvedic + Naturopathy wellness guide.
 
- Please produce:
- - 4–6 bullet-point natural remedies
- - Include diet, herbs, lifestyle, home practices
- - Focus on Naturopathy and then use Ayurveda for explanation.
- - Use Air/Fire/Water/Earth energies instead of Vata/Pitta/Kapha
- """
+    No RAG text was found.
 
+    User question:
+    {query}
+
+    Respond using THIS format:
+
+    🌿 **Nani-AI Wellness Guidance**
+
+    ✨ **Summary**
+    (short gentle intro)
+
+    ---
+
+    💚 **Natural Remedies for {query}**
+    🟢 **1. Dietary Support**  
+    • bullets  
+    🟢 **2. Herbal Support**  
+    • bullets  
+    🟢 **3. Home Therapy**  
+    • bullets  
+    🟢 **4. Lifestyle & Routine**  
+    • bullets  
+
+    ---
+
+    🌬️ **Energy Insight (Ayurveda)**  
+    Describe imbalance using Air/Fire/Water/Earth energies only.
+
+    ⚠ ️ *Nani-AI provides general wellness guidance only.*
+    Rules:
+    - Focus on Naturopathy and then use Ayurveda for explanation.
+    """      
+        
+        
     # Trim giant prompt if needed
     final_prompt = final_prompt[:5000]
 
