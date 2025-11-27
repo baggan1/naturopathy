@@ -320,7 +320,7 @@ Respond in this structure:
 
 ✨ What’s Happening in Your Body
 
-(2–4 lines summarizing what the RAG text suggests about {query}.  
+(2–4 lines summarizing what the {chunks_text} suggests about {query}.  
 Explain using simple physiology and include energy imbalance using the plain-English mappings above.)
 
 💚 Personalized Natural Remedies  
@@ -369,7 +369,7 @@ Respond using this structure:
 
 ✨ What’s Happening in Your Body  
 
-(2–4 lines blending RAG + reasoning: circulation, hydration, digestive comfort, hormone shifts, liver load, inflammation, etc.  
+(2–4 lines blending {chunks_text} + reasoning: circulation, hydration, digestive comfort, hormone shifts, liver load, inflammation, etc.  
 Explain using simple physiology and include energy imbalance using the plain-English patterns above.)
 
 💚 Personalized Natural Remedies  
