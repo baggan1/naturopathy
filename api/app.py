@@ -312,9 +312,7 @@ async def fetch_results(request: Request):
 
     ✨ **Summary**  
     (1–3 lines summarizing retrieved content)
-
     ---
-
     💚 **Natural Remedies for {query}**
 
     🟢 **1. Dietary Support**  
@@ -328,15 +326,11 @@ async def fetch_results(request: Request):
 
     🟢 **4. Lifestyle & Routine**  
     • (short bullets)
-
+    
     ---
-
     🌬️ **Energy Insight (Ayurveda)**  
     Explain imbalance using Air / Fire / Water / Earth energies only.
-
     ---
-
-    ⚠️ *Nani-AI provides gentle wellness guidance only — not medical care.*
 
     Rules:
     - Keep bullets short & practical  
@@ -366,9 +360,7 @@ async def fetch_results(request: Request):
 
     ✨ **Summary**
     (short, friendly explanation)
-
     ---
-
     💚 **Natural Remedies for {query}**
     🟢 **1. Dietary Support**  
     • bullets  
@@ -378,13 +370,11 @@ async def fetch_results(request: Request):
     • bullets  
     🟢 **4. Lifestyle & Routine**  
     • bullets  
-
+    
     ---
-
     🌬️ **Energy Insight (Ayurveda)**  
     Use Air/Fire/Water/Earth energies only.
 
-    ⚠️ *Nani-AI provides general wellness guidance only.*
 
     Rules:
     - Focus on Naturopathy and then use Ayurveda for explanation.
@@ -407,9 +397,7 @@ async def fetch_results(request: Request):
 
     ✨ **Summary**
     (short gentle intro)
-
     ---
-
     💚 **Natural Remedies for {query}**
     🟢 **1. Dietary Support**  
     • bullets  
@@ -419,13 +407,11 @@ async def fetch_results(request: Request):
     • bullets  
     🟢 **4. Lifestyle & Routine**  
     • bullets  
-
+    
     ---
-
     🌬️ **Energy Insight (Ayurveda)**  
     Describe imbalance using Air/Fire/Water/Earth energies only.
 
-    ⚠ ️ *Nani-AI provides general wellness guidance only.*
     Rules:
     - Focus on Naturopathy and then use Ayurveda for explanation.
     """      
