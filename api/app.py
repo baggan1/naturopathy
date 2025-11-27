@@ -308,36 +308,49 @@ async def fetch_results(request: Request):
   
   Your response format MUST follow this structure:
 
-    🌿 **Nani-AI Wellness Guidance**
+🌿 Nani-AI Wellness Guidance
+✨ What’s Happening in Your Body
 
-    ✨ **Summary**  
-    (1–3 lines summarizing retrieved content)
-    ---
-    💚 **Natural Remedies for {query}**
+(A soothing 1–2 line summary based on RAG text)
 
-    🟢 **1. Dietary Support**  
-    • (short bullets)
+💚 Your Personalized Natural Remedies
+🥗 1. Nourishing Food Support
 
-    🟢 **2. Herbal Support**  
-    • (short bullets)
+✔ Warm, soft meals that reduce strain
+✔ Fiber-rich fruits + leafy greens
+✔ Hydration rituals (warm water, herbal teas)
+✔ Avoid dryness, cold foods, and over-spices
 
-    🟢 **3. Home Therapy**  
-    • (short bullets)
+🌿 2. Herbal & Home Remedies
 
-    🟢 **4. Lifestyle & Routine**  
-    • (short bullets)
-    
-    ---
-    🌬️ **Energy Insight (Ayurveda)**  
-    Explain imbalance using Air / Fire / Water / Earth energies only.
-    ---
+💠 Triphala for cleansing
+💠 Aloe vera gel (cooling + soothing)
+💠 Fennel + cumin tea for digestion
+💠 Use coconut or sesame oil to support healing
 
+🛁 3. Simple Home Therapy
+
+🫧 Warm sitz bath (15–20 min)
+🫧 Apply aloe or coconut oil gently
+🫧 Footstool posture to reduce pressure
+
+🧘‍♀️ 4. Lifestyle & Routine Balance
+
+🌾 Gentle yoga flows
+🚶 10–20 min walking daily
+🪑 Avoid long sitting
+⏳ Respond to your body's urge — no straining
+
+🌬️ Energy Insight (Ayurveda)
+
+This imbalance reflects excess Fire (heat) + Air (dryness).
+Focus on cooling, moistening, and grounding choices.
     Rules:
     - Keep bullets short & practical  
     - Use emojis exactly as shown  
     - Base remedies STRICTLY on the retrieved text unless missing  
     - Use Air/Fire/Water/Earth energies instead of Vata/Pitta/Kapha 
-    """
+"""
 
     elif matches and max_sim >= 0.25:
         mode = "HYBRID"
@@ -356,29 +369,47 @@ async def fetch_results(request: Request):
 
     Blend the retrieved text with your own Ayurvedic reasoning and respond using EXACTLY this format:
 
-    🌿 **Nani-AI Wellness Guidance**
+🌿 Nani-AI Wellness Guidance
+✨ What’s Happening in Your Body
 
-    ✨ **Summary**
-    (short, friendly explanation)
-    ---
-    💚 **Natural Remedies for {query}**
-    🟢 **1. Dietary Support**  
-    • bullets  
-    🟢 **2. Herbal Support**  
-    • bullets  
-    🟢 **3. Home Therapy**  
-    • bullets  
-    🟢 **4. Lifestyle & Routine**  
-    • bullets  
-    
-    ---
-    🌬️ **Energy Insight (Ayurveda)**  
-    Use Air/Fire/Water/Earth energies only.
+(A soothing 1–2 line summary based on RAG text)
 
+💚 Your Personalized Natural Remedies
+🥗 1. Nourishing Food Support
 
-    Rules:
-    - Focus on Naturopathy and then use Ayurveda for explanation.
-    """
+✔ Warm, soft meals that reduce strain
+✔ Fiber-rich fruits + leafy greens
+✔ Hydration rituals (warm water, herbal teas)
+✔ Avoid dryness, cold foods, and over-spices
+
+🌿 2. Herbal & Home Remedies
+
+💠 Triphala for cleansing
+💠 Aloe vera gel (cooling + soothing)
+💠 Fennel + cumin tea for digestion
+💠 Use coconut or sesame oil to support healing
+
+🛁 3. Simple Home Therapy
+
+🫧 Warm sitz bath (15–20 min)
+🫧 Apply aloe or coconut oil gently
+🫧 Footstool posture to reduce pressure
+
+🧘‍♀️ 4. Lifestyle & Routine Balance
+
+🌾 Gentle yoga flows
+🚶 10–20 min walking daily
+🪑 Avoid long sitting
+⏳ Respond to your body's urge — no straining
+
+🌬️ Energy Insight (Ayurveda)
+
+This imbalance reflects excess Fire (heat) + Air (dryness).
+Focus on cooling, moistening, and grounding choices.
+
+Rules:
+- Focus on Naturopathy and then use Ayurveda remedies for explanation.
+"""
  
     else:
         mode = "LLM_ONLY"
@@ -393,28 +424,47 @@ async def fetch_results(request: Request):
 
     Respond using THIS format:
 
-    🌿 **Nani-AI Wellness Guidance**
+🌿 Nani-AI Wellness Guidance
+✨ What’s Happening in Your Body
 
-    ✨ **Summary**
-    (short gentle intro)
-    ---
-    💚 **Natural Remedies for {query}**
-    🟢 **1. Dietary Support**  
-    • bullets  
-    🟢 **2. Herbal Support**  
-    • bullets  
-    🟢 **3. Home Therapy**  
-    • bullets  
-    🟢 **4. Lifestyle & Routine**  
-    • bullets  
-    
-    ---
-    🌬️ **Energy Insight (Ayurveda)**  
-    Describe imbalance using Air/Fire/Water/Earth energies only.
+(A soothing 1–2 line summary based on RAG text)
 
-    Rules:
-    - Focus on Naturopathy and then use Ayurveda for explanation.
-    """      
+💚 Your Personalized Natural Remedies
+🥗 1. Nourishing Food Support
+
+✔ Warm, soft meals that reduce strain
+✔ Fiber-rich fruits + leafy greens
+✔ Hydration rituals (warm water, herbal teas)
+✔ Avoid dryness, cold foods, and over-spices
+
+🌿 2. Herbal & Home Remedies
+
+💠 Triphala for cleansing
+💠 Aloe vera gel (cooling + soothing)
+💠 Fennel + cumin tea for digestion
+💠 Use coconut or sesame oil to support healing
+
+🛁 3. Simple Home Therapy
+
+🫧 Warm sitz bath (15–20 min)
+🫧 Apply aloe or coconut oil gently
+🫧 Footstool posture to reduce pressure
+
+🧘‍♀️ 4. Lifestyle & Routine Balance
+
+🌾 Gentle yoga flows
+🚶 10–20 min walking daily
+🪑 Avoid long sitting
+⏳ Respond to your body's urge — no straining
+
+🌬️ Energy Insight (Ayurveda)
+
+This imbalance reflects excess Fire (heat) + Air (dryness).
+Focus on cooling, moistening, and grounding choices.
+
+Rules:
+- Focus on Naturopathy and then use Ayurveda remediess for explanation.
+"""      
         
         
     # Trim giant prompt if needed
