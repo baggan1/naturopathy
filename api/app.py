@@ -286,64 +286,62 @@ async def fetch_results(request: Request):
     print("Max similarity:", max_sim)
     print(f"STEP 4: Vector Search: {time.time() - step_vec:.2f} sec")
 
-    # ----------------------------------------------
-    # TRIM CHUNKS FOR SPEED
-    # ----------------------------------------------
-    chunks_text = "\n\n".join([m["chunk"] for m in matches]) if matches else ""
-
-
+  
     # ----------------------------------------------
     # PROMPT GENERATION (optimized)
     # ----------------------------------------------
-    if matches and max_sim >= 0.70:
+    if matches and max_sim >= 0.55:
         mode = "RAG_ONLY"
         rag_used = True
+        chunks_text = "\n\n".join([m["chunk"] for m in matches]) if matches else ""
         final_prompt = f"""
   You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
+  Below is related naturopathy text from your knowledgebase:
+
+ <<<CHUNKS_TEXT>>>
+  {chunks_text}
+ <<<END_CHUNKS_TEXT>>>
 
   User query:
   {query}
-
-  Primary text to reference:
-  {chunks_text}
-
+  
   Instructions:
-  - Start with a gentle summary of the matched text
-  - Provide 4–6 short, practical bullet remedies
-  - Include diet, herbs, lifestyle & home treatments
+  - Base your answer STRICTLY on the retrieved text above.
+  - Do NOT invent facts not present in the retrieved text.
+  - Summarize key insights from the retrieved text.
+  - Then provide 4–6 natural remedies fully grounded in the retrieved text.
+  - Include diet, herbs, lifestyle & home therapy.
   - Focus on Naturopathy and then use Ayurveda for explanation.
   - Use Air/Fire/Water/Earth energies instead of Vata/Pitta/Kapha
-  - Keep tone simple, soothing, and preventative
   """
 
-    elif matches and max_sim >= 0.40:
+    elif matches and max_sim >= 0.25:
         mode = "HYBRID"
         rag_used = True
+        chunks_text = "\n\n".join([m["chunk"] for m in matches]) if matches else ""
         final_prompt = f"""
-  You are Nani-AI, a naturopathy + ayurveda assistant.
+  You are Nani-AI, a warm, clear Naturopathy & Ayurveda guide.
+  Below is related naturopathy text from your knowledgebase:
+
+ <<<CHUNKS_TEXT>>>
+  {chunks_text}
+ <<<END_CHUNKS_TEXT>>>
 
   User query:
   {query}
 
-  We found related (but not perfect) text:
-  {chunks_text}
-
   Instructions:
-  - Start from RAG content
-  - Add your own Ayurvedic reasoning
-  - Give 4–6 bullet remedies
-  - Include food, herbs, routines, and simple home therapy
-  - Focus on Naturopathy and then use Ayurveda for explanation.
-  - Use Air/Fire/Water/Earth energies instead of Vata/Pitta/Kapha
-  - Keep it friendly, safe, and actionable
-  """
+    - Use the retrieved text as your PRIMARY ANCHOR.
+    - Add your own Ayurvedic reasoning ONLY to fill gaps.
+    - Provide 4–6 remedies referencing BOTH RAG and Ayurveda.
+    - Keep tone gentle, practical, grounded.
+    """
 
     else:
         mode = "LLM_ONLY"
         rag_used = False
         final_prompt = f"""
- You are Nani-AI, an Ayurveda + Naturopathy guide.
-
+ 
  No RAG matches were found for:
  {query}
 
@@ -352,7 +350,6 @@ async def fetch_results(request: Request):
  - Include diet, herbs, lifestyle, home practices
  - Focus on Naturopathy and then use Ayurveda for explanation.
  - Use Air/Fire/Water/Earth energies instead of Vata/Pitta/Kapha
- - Keep it gentle, non-medical, supportive
  """
 
     # Trim giant prompt if needed
@@ -365,11 +362,8 @@ async def fetch_results(request: Request):
 
     ai = client_ai.chat.completions.create(
         model="gpt-4o-mini",
-        temperature=0.25,            # ⭐ tuned temperature
-        max_tokens=350,              # ⭐ stable response length
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
+        temperature=0.3,            # ⭐ tuned temperature
+        max_tokens=380,              # ⭐ stable response length
         messages=[{"role": "user", "content": final_prompt}],
     )
 
@@ -385,8 +379,11 @@ async def fetch_results(request: Request):
         "query": query,
         "match_count": len(matches),
         "max_similarity": max_sim,
+        "rag_used": rag_used,
+        "mode": mode,
+        "sources": [m["source"] for m in matches] if matches else [],
+        "latency_ms": int((time.time() - total_start) * 1000)
     }))
-
     # ---------------------------------------------------
     # TOTAL RUNTIME
     # ---------------------------------------------------
@@ -399,4 +396,5 @@ async def fetch_results(request: Request):
         "match_count": len(matches),
         "max_similarity": max_sim,
         "mode": mode,
+        "rag_used": rag_used
     }
