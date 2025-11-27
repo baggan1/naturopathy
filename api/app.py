@@ -318,7 +318,6 @@ Respond using EXACTLY this structure (same headings + emojis, but YOU must creat
 🌿 Nani-AI Wellness Guidance  
 ✨ What’s Happening in Your Body  
 (Write 2–3 short lines summarizing the situation for {query}, grounded in the retrieved text.)
-
 ---
 
 💚 Your Personalized Natural Remedies  
@@ -336,7 +335,6 @@ Respond using EXACTLY this structure (same headings + emojis, but YOU must creat
 
 🧘‍♀️ 4. Lifestyle & Routine Balance  
 - 3–5 bullet points of realistic routines, movement, sleep, and habits that support healing for {query}.
-
 ---
 
 🌬️ Energy Insight (Ayurveda)  
@@ -375,7 +373,6 @@ Respond using EXACTLY this structure (same headings + emojis; you create the con
 🌿 Nani-AI Wellness Guidance  
 ✨ What’s Happening in Your Body  
 (2–3 lines describing what might be happening in the body for {query}, referencing the retrieved text where possible.)
-
 ---
 
 💚 Your Personalized Natural Remedies  
@@ -391,7 +388,6 @@ Respond using EXACTLY this structure (same headings + emojis; you create the con
 
 🧘‍♀️ 4. Lifestyle & Routine Balance  
 - 3–5 realistic changes in routine that support healing for {query}.
-
 ---
 
 🌬️ Energy Insight (Ayurveda)  
@@ -419,7 +415,6 @@ Respond using THIS structure (you create the content):
 🌿 Nani-AI Wellness Guidance  
 ✨ What’s Happening in Your Body  
 (Explain {query} in 2–3 soothing lines.)
-
 ---
 
 💚 Your Personalized Natural Remedies  
@@ -435,7 +430,6 @@ Respond using THIS structure (you create the content):
 
 🧘‍♀️ 4. Lifestyle & Routine Balance  
 - 3–5 bullets around movement, rest, work, and daily rhythm tailored to {query}.
-
 ---
 
 🌬️ Energy Insight (Ayurveda)  
