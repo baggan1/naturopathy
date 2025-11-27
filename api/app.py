@@ -317,12 +317,12 @@ Respond using this structure (YOU generate the content):
 🌿 Nani-AI Wellness Guidance
 
 ✨ What’s Happening in Your Body  
-(2–3 lines summarizing what the RAG text says about {query}.  
-Include Ayurveda energy imbalance using ONLY these mappings:  
-• Vata = Air, Space, Movement, Gas, Dryness, Constipation, Anxiety  
-• Pitta = Fire, Heat, Inflammation, Acidity, Irritation, Rashes  
-• Kapha = Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy  
-Explain briefly how the disturbed energy creates the symptoms of {query}.)
+(2–3 lines explaining what’s happening in {query}, grounded in RAG.  
+Include the Ayurveda energy imbalance using ONLY these plain-English energies:
+• Air + Space → gas, bloating, dryness, constipation, anxiety  
+• Fire + Water → heat, inflammation, acidity, irritation, rashes  
+• Water + Earth → mucus, heaviness, sluggishness, congestion, lethargy  
+Explain how the disturbed energy pattern creates the symptoms, WITHOUT using the words Vata, Pitta, or Kapha.)
 ---
 
 💚 Your Personalized Natural Remedies  
@@ -371,12 +371,12 @@ Respond using this format:
 🌿 Nani-AI Wellness Guidance
 
 ✨ What’s Happening in Your Body  
-(2–3 lines explaining {query} using a mix of RAG + your reasoning.  
-Identify Ayurveda energy imbalance using ONLY:  
-• Vata = Air, Space, Movement, Gas, Dryness, Constipation, Anxiety  
-• Pitta = Fire, Heat, Inflammation, Acidity, Irritation, Rashes  
-• Kapha = Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy  
-Explain briefly how the disturbed energy causes {query} symptoms.)
+(2–3 lines explaining what’s happening in {query}, grounded in RAG.  
+Include the Ayurveda energy imbalance using ONLY these plain-English energies:
+• Air + Space → gas, bloating, dryness, constipation, anxiety  
+• Fire + Water → heat, inflammation, acidity, irritation, rashes  
+• Water + Earth → mucus, heaviness, sluggishness, congestion, lethargy  
+Explain how the disturbed energy pattern creates the symptoms, WITHOUT using the words Vata, Pitta, or Kapha.)
 
 ---
 
@@ -417,12 +417,12 @@ Respond using this structure:
 🌿 Nani-AI Wellness Guidance
 
 ✨ What’s Happening in Your Body  
-(2–3 lines explaining {query} clearly and soothingly.  
-Include Ayurveda energy imbalance using ONLY this mapping:  
-• Vata = Air, Space, Movement, Gas, Dryness, Constipation, Anxiety  
-• Pitta = Fire, Heat, Inflammation, Acidity, Irritation, Rashes  
-• Kapha = Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy  
-Explain how that energy imbalance causes the symptoms.)
+(2–3 lines explaining what’s happening in {query}, grounded in RAG.  
+Include the Ayurveda energy imbalance using ONLY these plain-English energies:
+• Air + Space → gas, bloating, dryness, constipation, anxiety  
+• Fire + Water → heat, inflammation, acidity, irritation, rashes  
+• Water + Earth → mucus, heaviness, sluggishness, congestion, lethargy  
+Explain how the disturbed energy pattern creates the symptoms, WITHOUT using the words Vata, Pitta, or Kapha.)
 
 ---
 
