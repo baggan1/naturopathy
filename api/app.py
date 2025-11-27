@@ -368,7 +368,7 @@ RULES:
         rag_used = True
         chunks_text = "\n\n".join([m["chunk"][:650] for m in matches]) if matches else ""
         chunks_text = chunks_text[:3500]
-final_prompt = f"""
+        final_prompt = f"""
 You are Nani-AI, a warm Naturopathy + Ayurveda-informed guide.
 
 USER QUERY: {query}
@@ -426,7 +426,7 @@ Rules:
     else:
         mode = "LLM_ONLY"
         rag_used = False
-final_prompt = f"""
+        final_prompt = f"""
 You are Nani-AI, a warm Naturopathy +Ayurveda -informed guide.
 
 No RAG was found for: {query}
