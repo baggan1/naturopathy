@@ -337,15 +337,22 @@ Respond using EXACTLY this structure (same headings + emojis, but YOU must creat
 - 3–5 bullet points of realistic routines, movement, sleep, and habits that support healing for {query}.
 ---
 
-🌬️ Ayurveda Explanation
-Describe the energy imbalance in {query} using Vata as Air, Space, Gas, Constipation, Anxiety  / Pitta as Excess Heat, Inflammation, Acidity, Rashes / Kapha as Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
+🌬️ Energy Insight (Ayurveda)  
+(Explain the imbalance using the mapped energies ONLY.)
+Ayurveda Energy Interpretation Rules:
+- Translate doshas using these mappings:
+  • Vata = Air, Space, Movement, Gas, Bloating, Dryness, Constipation, Anxiety
+  • Pitta = Fire, Heat, Sharpness, Inflammation, Acidity, Irritation, Rashes
+  • Kapha = Water, Earth, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
 
-Make the reasoning feel personal to {query}.
+- For the user's condition {query}, identify which energy is imbalanced.
+- Describe the imbalance in simple, friendly language.
+- Connect the imbalance clearly to {query}'s symptoms.escribe the energy imbalance in {query} using Vata as Air, Space, Gas, Constipation, Anxiety  / Pitta as Excess Heat, Inflammation, Acidity, Rashes / Kapha as Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
+- All advice must feel tailored to {query} and consistent with the retrieved {chunks_text}.
 
 Rules:
-- DO NOT copy/paste the same remedies for different conditions.
-- DO NOT output example text from this prompt; generate fresh, condition-specific bullets.
-- All advice must feel tailored to {query} and consistent with the retrieved text.
+- Do NOT reuse generic remedies for every condition.
+- Use the CHUNKS_TEXT as the primary evidence source.
 """
 
     elif matches and max_sim >= 0.25:
@@ -391,12 +398,17 @@ Respond using EXACTLY this structure (same headings + emojis; you create the con
 - 3–5 realistic changes in routine that support healing for {query}.
 ---
 
-🌬️ Ayurveda Explanation
-Describe the energy imbalance in {query} using Vata as Air, Space, Gas, Constipation, Anxiety  / Pitta as Excess Heat, Inflammation, Acidity, Rashes / Kapha as Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
+🌬️ Energy Insight (Ayurveda)
+Ayurveda Energy Interpretation Rules:
+- Translate doshas using these mappings:
+  • Vata = Air, Space, Movement, Gas, Bloating, Dryness, Constipation, Anxiety
+  • Pitta = Fire, Heat, Sharpness, Inflammation, Acidity, Irritation, Rashes
+  • Kapha = Water, Earth, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
 
 Rules:
-- Do NOT reuse the same remedies across unrelated conditions.
-- Ground as much as possible in the CHUNKS_TEXT, but adapt to the specific query.
+- For the user's condition {query}, identify which energy is most imbalanced.
+- Describe it using ONLY these mapped energies, not the Ayurvedic names.
+- Tie the imbalance to symptoms specific to {query}.
 """
 
     else:
@@ -433,12 +445,15 @@ Respond using THIS structure (you create the content):
 - 3–5 bullets around movement, rest, work, and daily rhythm tailored to {query}.
 ---
 
-🌬️ Ayurveda Explanation
-Describe the energy imbalance in {query} using Vata as Air, Space, Gas, Constipation, Anxiety  / Pitta as Excess Heat, Inflammation, Acidity, Rashes / Kapha as Water, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
+🌬️ Energy Insight (Ayurveda)
+Ayurveda Energy Interpretation Rules:
+- Translate doshas using these mappings:
+  • Vata = Air, Space, Movement, Gas, Bloating, Dryness, Constipation, Anxiety
+  • Pitta = Fire, Heat, Sharpness, Inflammation, Acidity, Irritation, Rashes
+  • Kapha = Water, Earth, Mucus, Heaviness, Sluggishness, Congestion, Lethargy
 
-Rules:
-- Do NOT copy remedies used for entirely different conditions.
-- The suggestions must clearly match the nature of {query}.
+- Identify which energy is imbalanced in {query}.
+- Explain how it creates the symptoms of {query} in a gentle, intuitive way.
 """
 
     # Trim giant prompt if needed
