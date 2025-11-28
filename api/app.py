@@ -318,7 +318,8 @@ Your instructions:
 
 ---------------------------------
 EXAMPLE (Few-Shot — Follow this style):
-✨ What’s Happening in Your Body--  
+✨ What’s Happening in Your Body
+  
 Mild bloating can occur when digestion slows or extra gas forms in the gut.  
 This often happens with irregular meals, eating quickly, or foods that are harder to break down.  
 From an Ayurveda perspective, this reflects a rise in Vata(Air + Space) energies.  
@@ -342,7 +343,8 @@ From an Ayurveda perspective, this reflects a rise in Vata(Air + Space) energies
 
 Now respond in THIS structure, fully tailored to {query}:
 
-✨ What’s Happening in Your Body--
+✨ What’s Happening in Your Body
+
 (2–4 lines summarizing what the RAG text suggests about {query}.  
 Explain using simple physiology and include energy imbalance using the plain-English mappings above.)
 
@@ -387,7 +389,8 @@ Guidelines:
 • Keep tone calm, supportive, and non-medical.
 
 Few-Shot Example (follow structure + tone):
-✨ What’s Happening in Your Body  
+✨ What’s Happening in Your Body
+
 Bloating often comes from slowed digestion or trapped gas.  
 Warm foods support the gut.  
 Energy: Air + Space → mild expansion + discomfort.
