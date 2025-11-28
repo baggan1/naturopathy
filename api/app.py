@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import httpx, os, json, time, asyncio
+import httpx, os, json, stripe, time, asyncio
 from datetime import datetime, timezone
 from openai import OpenAI
 
@@ -39,6 +39,11 @@ EMBEDDING_API = os.getenv(
     "EMBEDDING_API",
     "https://mystiqspice-naturopathy-embedder.hf.space/embed",
 )
+
+#--------------------------------
+#STRIPE API KEY
+#-----------------------------------
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 # ----------------------------------------------
 # SUPABASE HELPERS
@@ -212,14 +217,10 @@ async def fetch_results(request: Request):
     if not (trial_info["trial_active"] or trial_info["subscribed"]):
         return {"error": "Trial expired", **trial_info}
 
-    # -------------------------
-    # EMBEDDING
-    # -------------------------
-    step_emb = time.time()
 
-# ---------------------------
-# EMBEDDING SAFE WRAPPER
-# ---------------------------
+    # ---------------------------
+    # EMBEDDING SAFE WRAPPER
+    # ---------------------------
     step_emb = time.time()
     try:
         async with httpx.AsyncClient(timeout=60) as client:
@@ -363,8 +364,6 @@ RULES:
 • No repetitive generic advice across conditions.  
 • No medical claims.  
 """
-
-
     elif matches and max_sim >= 0.25:
         mode = "HYBRID"
         rag_used = True
@@ -423,9 +422,6 @@ Rules:
 • Avoid generic repetition.  
 • Stay gentle and non-alarming.  
 """
-
-
-
     else:
         mode = "LLM_ONLY"
         rag_used = False
@@ -479,10 +475,6 @@ Rules:
 • Must feel personalized to {query}.  
 """
 
-
-
-
-
 # Avoid over-long prompts but keep them intact
     if len(final_prompt) > 20000:   # 24k chars safe for GPT-4o
         final_prompt = final_prompt[:20000]
@@ -531,3 +523,97 @@ Rules:
         "mode": mode,
         "rag_used": rag_used
     }
+# ============================================================
+# STRIPE SUBSCRIPTION CHECKOUT
+# ============================================================
+
+def verify_internal_key(request: Request):
+    """ Shared small helper to secure sensitive routes """
+    if request.headers.get("X-API-KEY") != SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@app.post("/create_checkout_session")
+async def create_checkout_session(request: Request):
+    """
+    Creates a Stripe subscription checkout session.
+    User must already be authenticated in Supabase Auth.
+    """
+    verify_internal_key(request)
+    body = await request.json()
+
+    price_id = body.get("price_id")
+    user_email = body.get("email")
+    user_id = body.get("user_id")
+
+    if not price_id:
+        raise HTTPException(status_code=400, detail="Missing price_id")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="Missing email")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing user_id")
+
+    try:
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            payment_method_types=["card"],
+            customer_email=user_email,
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url="https://nani.arkayoga.com/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://nani.arkayoga.com/cancel",
+            metadata={"user_id": user_id}
+        )
+        return {"checkout_url": session.url}
+
+    except Exception as e:
+        print("Stripe session error:", str(e))
+        raise HTTPException(status_code=500, detail="Stripe session creation failed")
+
+
+# ============================================================
+# STRIPE WEBHOOK — updates Supabase profile after payment
+# ============================================================
+
+@app.post("/stripe_webhook")
+async def stripe_webhook(request: Request):
+    """
+    Stripe webhook: called after successful payment.
+    Updates:
+        subscribed = true
+        trial_end = null
+    """
+    payload = await request.body()
+    sig_header = request.headers.get("Stripe-Signature")
+
+    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except Exception as e:
+        print("Webhook signature error:", e)
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # When the user pays for subscription:
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_id = session["metadata"].get("user_id")
+
+        if user_id:
+            async with httpx.AsyncClient(timeout=30) as client:
+                await client.patch(
+                    f"{SUPABASE_URL}/rest/v1/profiles",
+                    params={"id": f"eq.{user_id}"},
+                    headers={
+                        "apikey": SUPABASE_SERVICE_KEY,
+                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                        "Content-Type": "application/json",
+                        "Prefer": "return=representation"
+                    },
+                    json={"subscribed": True, "trial_end": None}
+                )
+
+            print("✔ Updated user subscription in Supabase:", user_id)
+
+    return {"status": "success"}
