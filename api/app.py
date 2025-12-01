@@ -152,7 +152,20 @@ async def auth_status(request: Request):
 
     profile = await get_or_create_profile(user["id"], user["email"])
     trial_info = compute_trial_status(profile)
-    return {"email": user["email"], **trial_info}
+
+    # Simple role logic
+    if trial_info["subscribed"]:
+        role = "premium"
+    elif trial_info["trial_active"]:
+        role = "trial"
+    else:
+        role = "free"
+
+    return {
+        "user_email": user["email"],
+        "role": role,              # 👈 new field
+        **trial_info
+    }
 
 
 # ----------------------------------------------
@@ -616,6 +629,8 @@ RULES:
     # ANALYTICS (async)
     # ---------------------------------------------------
     asyncio.create_task(log_analytics({
+        "user_id": user["id"],              
+        "user_email": user["email"],
         "query": query,
         "match_count": len(matches),
         "max_similarity": max_sim,
@@ -810,3 +825,42 @@ async def create_customer_portal(request: Request):
     except Exception as e:
         print("Portal creation error:", e)
         raise HTTPException(status_code=500, detail="Failed to create billing portal session")
+
+#------------------------------------
+#USER HISTORY ENDPOINT---------------
+#-------------------------------------
+@app.get("/user/history")
+async def user_history(request: Request):
+
+    if request.headers.get("X-API-KEY") != SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing auth token")
+
+    access_token = auth_header.split(" ", 1)[1]
+    user = await get_supabase_user(access_token)
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            f"{SUPABASE_URL}/rest/v1/analytics_logs",
+            params={
+                "select": "query,created_at",
+                "user_id": f"eq.{user['id']}",
+                "order": "created_at.desc",
+                "limit": 25
+            },
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+            }
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=500, detail="History fetch failed")
+
+    return resp.json()
