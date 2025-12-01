@@ -712,6 +712,8 @@ async def stripe_webhook(request: Request):
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         user_id = session["metadata"].get("user_id")
+        stripe_customer_id = session_obj.get("customer") or session_obj.get("customer_details", {}).get("id")
+
 
         if user_id:
             async with httpx.AsyncClient(timeout=30) as client:
@@ -724,9 +726,62 @@ async def stripe_webhook(request: Request):
                         "Content-Type": "application/json",
                         "Prefer": "return=representation"
                     },
-                    json={"subscribed": True, "trial_end": None}
+                    json={"subscribed": True, "trial_end": None, "stripe_customer_id": stripe_customer_id}
                 )
 
             print("✔ Updated user subscription in Supabase:", user_id)
 
     return {"status": "success"}
+
+#---------------------------------------------
+#CUSTOMER PORTAL TO MANAGE BILLING-------------
+#-----------------------------------------------
+@app.post("/create_customer_portal")
+async def create_customer_portal(request: Request):
+    """
+    Creates a Stripe billing portal session for the logged-in user.
+    Allows them to update payment method, cancel subscription, view invoices, etc.
+    """
+    if request.headers.get("X-API-KEY") != SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    body = await request.json()
+    user_id = body.get("user_id")
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing user_id")
+
+    # 1️⃣ Look up Stripe customer ID from Supabase profile
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            f"{SUPABASE_URL}/rest/v1/profiles",
+            params={"select": "*", "id": f"eq.{user_id}", "limit": 1},
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+            },
+        )
+    rows = resp.json()
+    if not rows:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    profile = rows[0]
+    stripe_customer_id = profile.get("stripe_customer_id")
+
+    if not stripe_customer_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No Stripe customer found — is this user subscribed?"
+        )
+
+    # 2️⃣ Create Stripe portal session
+    try:
+        portal_session = stripe.billing_portal.Session.create(
+            customer=stripe_customer_id,
+            return_url="https://nani.arkayoga.com/account",  # Adjust as needed
+        )
+        return {"url": portal_session.url}
+
+    except Exception as e:
+        print("Portal creation error:", e)
+        raise HTTPException(status_code=500, detail="Failed to create billing portal session")
