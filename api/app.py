@@ -675,7 +675,6 @@ async def create_checkout_session(request: Request):
             mode="subscription",
             payment_method_types=["card"],
             customer_email=user_email,
-            customer_creation="always",
             line_items=[{"price": price_id, "quantity": 1}],
             success_url=f"{SUCCESS_URL}?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=CANCEL_URL,
