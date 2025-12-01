@@ -803,7 +803,7 @@ async def create_customer_portal(request: Request):
     try:
         portal_session = stripe.billing_portal.Session.create(
             customer=stripe_customer_id,
-            return_url="https://nani.arkayoga.com/account",  # Adjust as needed
+            return_url="https://nani.arkayoga.com/",  # Adjust as needed
         )
         return {"url": portal_session.url}
 
