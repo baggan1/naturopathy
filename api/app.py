@@ -34,6 +34,8 @@ async def preflight_handler():
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 SECRET = os.getenv("APP_SECRET")
+SUCCESS_URL = os.getenv("STRIPE_SUCCESS_URL")
+CANCEL_URL = os.getenv("STRIPE_CANCEL_URL")
 
 EMBEDDING_API = os.getenv(
     "EMBEDDING_API",
@@ -665,17 +667,21 @@ async def create_checkout_session(request: Request):
         raise HTTPException(status_code=400, detail="Missing email")
     if not user_id:
         raise HTTPException(status_code=400, detail="Missing user_id")
-
+    
+    print("🔵 Creating checkout session:", user_id, user_email, price_id)
+    
     try:
         session = stripe.checkout.Session.create(
             mode="subscription",
             payment_method_types=["card"],
             customer_email=user_email,
+            customer_creation="always",
             line_items=[{"price": price_id, "quantity": 1}],
-            success_url="https://nani.arkayoga.com/success?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="https://nani.arkayoga.com/cancel",
+            success_url=f"{SUCCESS_URL}?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=CANCEL_URL,
             metadata={"user_id": user_id}
         )
+        print("🟢 Checkout session created:", session.id)
         return {"checkout_url": session.url}
 
     except Exception as e:
@@ -689,15 +695,8 @@ async def create_checkout_session(request: Request):
 
 @app.post("/stripe_webhook")
 async def stripe_webhook(request: Request):
-    """
-    Stripe webhook: called after successful payment.
-    Updates:
-        subscribed = true
-        trial_end = null
-    """
     payload = await request.body()
     sig_header = request.headers.get("Stripe-Signature")
-
     endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
     try:
@@ -708,30 +707,57 @@ async def stripe_webhook(request: Request):
         print("Webhook signature error:", e)
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # When the user pays for subscription:
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        user_id = session["metadata"].get("user_id")
-        stripe_customer_id = session_obj.get("customer") or session_obj.get("customer_details", {}).get("id")
+    event_type = event["type"]
+    session_obj = event["data"]["object"]   # ← FIXED
 
+    print(f"🔔 Received Stripe event: {event_type}")
 
-        if user_id:
-            async with httpx.AsyncClient(timeout=30) as client:
-                await client.patch(
-                    f"{SUPABASE_URL}/rest/v1/profiles",
-                    params={"id": f"eq.{user_id}"},
-                    headers={
-                        "apikey": SUPABASE_SERVICE_KEY,
-                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-                        "Content-Type": "application/json",
-                        "Prefer": "return=representation"
-                    },
-                    json={"subscribed": True, "trial_end": None, "stripe_customer_id": stripe_customer_id}
-                )
+    # ------------------------------------------------------------
+    # CHECKOUT COMPLETED → FIRST PAYMENT
+    # ------------------------------------------------------------
+    if event_type == "checkout.session.completed":
+        user_id = session_obj.get("metadata", {}).get("user_id")
+        stripe_customer_id = (
+            session_obj.get("customer")
+            or session_obj.get("customer_details", {}).get("id")
+        )
 
-            print("✔ Updated user subscription in Supabase:", user_id)
+        print("Parsed webhook values:", user_id, stripe_customer_id)
 
-    return {"status": "success"}
+        if not user_id:
+            print("⚠️ Missing `user_id` in session metadata.")
+            return {"status": "ignored"}
+
+        if not stripe_customer_id:
+            print("⚠️ Webhook missing customer ID.")
+            return {"status": "ignored"}
+
+        # Update Supabase user row
+        async with httpx.AsyncClient(timeout=30) as client:
+            await client.patch(
+                f"{SUPABASE_URL}/rest/v1/profiles",
+                params={"id": f"eq.{user_id}"},
+                headers={
+                    "apikey": SUPABASE_SERVICE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "return=representation"
+                },
+                json={
+                    "subscribed": True,
+                    "trial_end": None,
+                    "stripe_customer_id": stripe_customer_id
+                }
+            )
+
+        print(f"✅ Updated Supabase profile for user: {user_id}")
+        return {"status": "success"}
+
+    # ------------------------------------------------------------
+    # OTHER EVENTS IGNORED FOR NOW
+    # ------------------------------------------------------------
+    return {"status": "ignored"}
+
 
 #---------------------------------------------
 #CUSTOMER PORTAL TO MANAGE BILLING-------------
