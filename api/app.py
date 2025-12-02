@@ -376,11 +376,12 @@ Ayurveda sees this as slight dryness and lightness in the system.
 - Avoid cold drinks and heavy raw foods  
 
 2️⃣ Lifestyle, Routine & Movement  
-- 10–15 minute walk after meals  
-- Slow, mindful chewing  
-- Warm compress on abdomen  
-- Yoga: **Wind-Relieving Pose**, **Cat–Cow**  
-
+- Gentle walking after meals  
+- Light daily movement and household activity  
+- Warm compress or Epsom-salt bath for relaxation  
+- Follow a calming evening routine aligned with circadian rhythm  
+- If helpful, engage in general strengthening activities like light yoga or sports (no specific poses)
+ 
 3️⃣ Natural Supplements & Ayurvedic Herbs  
 - Magnesium glycinate  
 - Triphala  
@@ -400,7 +401,9 @@ NOW RESPOND IN THIS FORMAT FOR: {query}
 (3–5 items connected to RAG.)
 
 2️⃣ Lifestyle, Routine & Movement  
-(3–6 daily practices + include 1–2 yoga poses appropriate for {query}.)
+(3–6 supportive daily practices such as walking, gentle movement, light sports activity, 
+general strengthening exercises, warm Epsom-salt bath, light warm oil massage for the body, circadian rhythm routines appropriate for {query}. 
+NO specific yoga poses or detailed exercise instructions.)
 
 3️⃣ Natural Supplements & Ayurvedic Herbs  
 (3–6 items.)
@@ -476,10 +479,11 @@ Ayurveda sees this as slight dryness and lightness in the system.
 - Avoid cold drinks and heavy raw foods  
 
 2️⃣ Lifestyle, Routine & Movement  
-- 10–15 minute walk after meals  
-- Slow, mindful chewing  
-- Warm compress on abdomen  
-- Yoga: **Wind-Relieving Pose**, **Cat–Cow**  
+- Gentle walking after meals  
+- Light daily movement and household activity  
+- Warm compress or Epsom-salt bath for relaxation  
+- Follow a calming evening routine aligned with circadian rhythm  
+- If helpful, engage in general strengthening activities like light yoga or sports (no specific poses)
 
 3️⃣ Natural Supplements & Ayurvedic Herbs  
 - Magnesium glycinate  
@@ -500,7 +504,9 @@ Now create a UNIQUE response for: {query}
 (3–5 food + drink items tied to RAG.)
 
 2️⃣ Lifestyle, Routine & Movement  
-(3–6 practices + 1–2 yoga poses.)
+(3–6 supportive daily practices such as walking, gentle movement, light sports activity, 
+general strengthening exercises, warm Epsom-salt bath, light warm oil massage for the body, circadian rhythm routines appropriate for {query}. 
+NO specific yoga poses or detailed exercise instructions.)
 
 3️⃣ Natural Supplements & Ayurvedic Herbs  
 (3–6 supplements.)
@@ -566,10 +572,11 @@ Ayurveda sees this as slight dryness and lightness in the system.
 - Avoid cold drinks and heavy raw foods  
 
 2️⃣ Lifestyle, Routine & Movement  
-- 10–15 minute walk after meals  
-- Slow, mindful chewing  
-- Warm compress on abdomen  
-- Yoga: **Wind-Relieving Pose**, **Cat–Cow**  
+- Gentle walking after meals  
+- Light daily movement and household activity  
+- Warm compress or Epsom-salt bath for relaxation  
+- Follow a calming evening routine aligned with circadian rhythm  
+- If helpful, engage in general strengthening activities like light yoga or sports (no specific poses)
 
 3️⃣ Natural Supplements & Ayurvedic Herbs  
 - Magnesium glycinate  
@@ -590,7 +597,9 @@ Now answer for {query} in this format:
 (3–5 items.)
 
 2️⃣ Lifestyle, Routine & Movement  
-(3–6 steps + 1–2 yoga poses.)
+(3–6 supportive daily practices such as walking, gentle movement, light sports activity, 
+general strengthening exercises, warm Epsom-salt bath, light warm oil massage for the body, circadian rhythm routines appropriate for {query}. 
+NO specific yoga poses or detailed exercise instructions.)
 
 3️⃣ Natural Supplements & Ayurvedic Herbs  
 (3–6 items.)
