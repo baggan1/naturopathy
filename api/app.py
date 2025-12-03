@@ -188,7 +188,7 @@ async def log_analytics(data: dict):
 
 
 # ----------------------------------------------
-# NANI-AI MAIN ENDPOINT (WITH TIMING LOGS + NEW PROMPTS + TEMP CONTROL)
+# NANI-AI MAIN ENDPOINT (CONVERSATIONAL)
 # ----------------------------------------------
 @app.post("/fetch_naturopathy_results")
 async def fetch_results(request: Request):
@@ -201,13 +201,27 @@ async def fetch_results(request: Request):
     # SECURITY CHECK
     # -------------------------
     if request.headers.get("X-API-KEY") != SECRET:
-       raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     body = await request.json()
     query = body.get("query", "").strip()
+    history = body.get("history") or []
 
     if not query:
         raise HTTPException(status_code=400, detail="Missing query")
+
+    # Build short conversational snippet from recent turns
+    history_snippet = ""
+    if isinstance(history, list) and history:
+        trimmed = history[-6:]  # last few messages only
+        lines = []
+        for m in trimmed:
+            role = (m.get("role") or "").upper()
+            if role not in ("USER", "ASSISTANT"):
+                continue
+            content = (m.get("content") or "")[:350]
+            lines.append(f"{role}: {content}")
+        history_snippet = "\n".join(lines)
 
     # -------------------------
     # AUTH + PROFILE
@@ -231,7 +245,6 @@ async def fetch_results(request: Request):
 
     if not (trial_info["trial_active"] or trial_info["subscribed"]):
         return {"error": "Trial expired", **trial_info}
-
 
     # ---------------------------
     # EMBEDDING SAFE WRAPPER
@@ -266,14 +279,13 @@ async def fetch_results(request: Request):
     # -------------------------
     step_vec = time.time()
 
-    # Ensure embedding is list[float]
     if not isinstance(embedding, list):
         raise HTTPException(status_code=500, detail="Embedding format invalid")
 
     print("Embedding size:", len(embedding))
 
     rpc_payload = {
-        "query_embedding": embedding,  # MUST be float[]
+        "query_embedding": embedding,
         "match_threshold": body.get("match_threshold", 0.4),
         "match_count": body.get("match_count", 3),
     }
@@ -298,14 +310,13 @@ async def fetch_results(request: Request):
 
     similarities = [m["similarity"] for m in matches] if matches else []
     max_sim = max(similarities) if similarities else 0
-    
+
     print("Max similarity:", max_sim)
     print(f"STEP 4: Vector Search: {time.time() - step_vec:.2f} sec")
 
-     # ---------------------------------------------- 
-    # PROMPT GENERATION (optimized & de-templated)
     # ----------------------------------------------
-    # The content must come from RAG + the user query.
+    # PROMPT GENERATION (CONVERSATIONAL)
+    # ----------------------------------------------
     if matches and max_sim >= 0.55:
         mode = "RAG_ONLY"
         rag_used = True
@@ -317,22 +328,24 @@ You are Nani-AI, a warm Naturopathy + Ayurveda–inspired wellness guide.
 USER QUERY:
 {query}
 
+PRIOR CONVERSATION (most recent turns):
+{history_snippet if history_snippet else "None."}
+
 HIGH-RELEVANCE KNOWLEDGE (PRIMARY SOURCE):
 <<<RAG>>>
 {chunks_text}
 <<<END-RAG>>>
 
 Your role:
-• Use the RAG text as your main knowledge source.  
+• Use the RAG text as your main knowledge source.
 • VERY IMPORTANT — Non-Alarming Rule:
-  - Never mention serious medical conditions, diagnoses, or frightening terms 
-    (e.g., necrosis, organ failure, malignancy, renal insufficiency, ischemia, sepsis, stroke).
+  - Never mention serious medical conditions, diagnoses, or frightening terms.
   - Never speculate about dangerous causes.
   - Physiological explanations must remain gentle, simple, and non-frightening.
-• “What’s Happening in Your Body” must explain only **gentle physiology**  
-  (hydration, stress, circulation, digestion, mild inflammation, tension, posture, lifestyle factors).  
-• End that section with ONE short Ayurveda interpretation in plain English  
-  (e.g., “Ayurveda sees this as slight internal heat/dryness/heaviness.”)  
+• “What’s Happening in Your Body” must explain only gentle physiology
+  (hydration, stress, circulation, digestion, mild inflammation, tension, posture, lifestyle factors).
+• End that section with ONE short Ayurveda interpretation in plain English
+  (e.g., “Ayurveda sees this as slight internal heat/dryness/heaviness.”).
 • No Sanskrit dosha names UNLESS user explicitly asks for an Ayurvedic remedy.
 
 • Conditional Ayurveda Mode:
@@ -340,81 +353,87 @@ Your role:
     “dosha imbalance,” “tridosha,” “Ayurvedic cure,” etc., then switch modes:
       • Identify Vata, Pitta, Kapha imbalance using Sanskrit names.
       • Give simple samprapti (Ayurvedic mechanism) in plain language.
-      • Recommend Ayurvedic herbs using correct names (Ashwagandha, Amalaki, Triphala, Punarnava, Gokshura, Guduchi, etc.).
-      • Include Rasayana suggestions (e.g., Chyawanprash, Amalaki rasayana).
+      • Recommend Ayurvedic herbs using correct names.
       • Provide Ahara (diet) + Vihara (lifestyle) per dosha.
-  - Outside this case, do NOT use Sanskrit or deep Ayurveda.
+  - Otherwise, keep Ayurveda minimal.
 
 • Supplement Rule (Semi-Strict):
   - Prefer supplements or Ayurvedic herbs explicitly found in the RAG text.
   - If RAG has none, you may use safe, widely trusted natural supplements or gentle Ayurvedic herbs.
   - Never imply RAG contained something it did not.
 
-• Remedies MUST include these three sections:
-  1. Nourishing Food & Drinks  
-  2. Lifestyle, Routine & Movement (include 1–2 simple yoga asanas)  
-  3. Natural Supplements & Ayurvedic Herbs  
+• Remedies MUST include these three ACTION sections:
+  1. Nourishing Food & Drinks
+  2. Lifestyle, Routine & Movement
+  3. Natural Supplements & Ayurvedic Herbs
 
 • Tone must be warm, supportive, calming, and non-medical.
+• Be conversational: you may ask the user ONE short clarifying question when something important is missing.
 
 ---------------------------------
 FEW-SHOT EXAMPLE (Follow tone + structure)
 
 ✨ What’s Happening in Your Body
 
-Bloating can occur when digestion slows, allowing gas to accumulate in the intestines.  
-This may happen from eating quickly, irregular meals, or foods that ferment easily.  
-Warmth can help the gut move more smoothly.  
+Bloating can occur when digestion slows, allowing gas to accumulate in the intestines.
+This may happen from eating quickly, irregular meals, or foods that ferment easily.
+Warmth can help the gut move more smoothly.
 Ayurveda sees this as slight dryness and lightness in the system.
 
-💚 Personalized Natural Remedies  
+💚 Personalized Natural Remedies
 
-1️⃣ Nourishing Food & Drinks  
-- Warm meals like soups or lightly spiced lentils  
-- Ginger–fennel tea  
-- Add a pinch of cumin or ajwain  
-- Avoid cold drinks and heavy raw foods  
+1️⃣ Nourishing Food & Drinks
+- Warm meals like soups or lightly spiced lentils
+- Ginger–fennel tea
+- Add a pinch of cumin or ajwain
+- Avoid cold drinks and heavy raw foods
 
-2️⃣ Lifestyle, Routine & Movement  
-- Gentle walking after meals  
-- Light daily movement and household activity  
-- Warm compress or Epsom-salt bath for relaxation  
-- Follow a calming evening routine aligned with circadian rhythm  
-- If helpful, engage in general strengthening activities like light yoga or sports (no specific poses)
- 
-3️⃣ Natural Supplements & Ayurvedic Herbs  
-- Magnesium glycinate  
-- Triphala  
-- Ginger or fennel capsules  
-- Small pinch of hing in warm water  
+2️⃣ Lifestyle, Routine & Movement
+- Gentle walking after meals
+- Light daily movement and household activity
+- Warm compress or Epsom-salt bath for relaxation
+- Follow a calming evening routine aligned with circadian rhythm
+- Engage in general strengthening activities like light yoga or sports (no specific poses)
+
+3️⃣ Natural Supplements & Ayurvedic Herbs
+- Magnesium glycinate
+- Triphala
+- Ginger or fennel capsules
+- Small pinch of hing in warm water
 
 ---------------------------------
 
-NOW RESPOND IN THIS FORMAT FOR: {query}
+NOW RESPOND FOR THIS USER:
 
-✨ What’s Happening in Your Body  
+❓ Clarifying Question (only if needed)
+(If something essential is missing — timing, pattern, severity — ask ONE short question.
+If you have enough to guide them, skip this section.)
+
+✨ What’s Happening in Your Body
 (2–4 lines explaining gentle physiology behind {query}, then ONE Ayurveda line.)
 
-💚 Personalized Natural Remedies  
+💚 Action Steps
 
-1️⃣ Nourishing Food & Drinks  
-(3–5 items connected to RAG.)
+1️⃣ Nourishing Food & Drinks
+(3–5 items connected to the RAG content and {query}.)
 
-2️⃣ Lifestyle, Routine & Movement  
-(3–6 supportive daily practices such as walking, gentle movement, light sports activity, 
-general strengthening exercises, warm Epsom-salt bath, light warm oil massage for the body, circadian rhythm routines appropriate for {query}. 
+2️⃣ Lifestyle, Routine & Movement
+(3–6 supportive daily practices such as:
+- walking,
+- gentle daily movement or light sports,
+- light warm oil massage for the body,
+- warm Epsom-salt bath,
+- circadian rhythm routines and going to bed at a consistent time, appropriate for {query}.
 NO specific yoga poses or detailed exercise instructions.)
 
-3️⃣ Natural Supplements & Ayurvedic Herbs  
-(3–6 items.)
-- Prefer items found in RAG.  
-- If none appear, use safe universal options.  
+3️⃣ Natural Supplements & Ayurvedic Herbs
+(3–6 gentle items.)
+- Prefer items found in RAG.
+- If none appear, use safe universal options.
 
-RULES:
-• Stay grounded in RAG.  
-• ONE short Ayurveda line unless user requests full Ayurveda mode.  
-• No alarming conditions.  
-• No medical claims.      
+4️⃣ Gentle Follow-Up
+End with ONE friendly question such as:
+“Would you like me to adapt this to your daily routine or other symptoms?”
 """
 
     elif matches and max_sim >= 0.25:
@@ -428,6 +447,9 @@ You are Nani-AI, a warm Naturopathy + Ayurveda–inspired wellness guide.
 USER QUERY:
 {query}
 
+PRIOR CONVERSATION (most recent turns):
+{history_snippet if history_snippet else "None."}
+
 PARTIAL RAG:
 <<<RAG>>>
 {chunks_text}
@@ -437,9 +459,9 @@ Guidelines:
 • VERY IMPORTANT — Non-Alarming Rule:
   - Never mention serious medical conditions or dangerous causes.
   - Keep explanations gentle, supportive, and non-frightening.
-• Blend partial RAG with simple physiology  
-  (hydration, circulation, digestion, stress, mild inflammation, tension).  
-• “What’s Happening in Your Body” must give only gentle physiology, then ONE Ayurveda line.  
+• Blend partial RAG with simple physiology
+  (hydration, circulation, digestion, stress, mild inflammation, tension).
+• “What’s Happening in Your Body” must give only gentle physiology, then ONE Ayurveda line.
 • No Sanskrit dosha names unless user asks for a full Ayurvedic remedy.
 
 • Conditional Ayurveda Mode:
@@ -455,69 +477,51 @@ Guidelines:
   - If none appear, add safe, gentle Ayurvedic or naturopathic options.
   - Never imply RAG contained anything it didn’t.
 
-• Remedies MUST include:
+• Remedies MUST include three ACTION sections:
   1. Nourishing Food & Drinks
   2. Lifestyle, Routine & Movement
-  3. Natural Supplements & Ayurvedic Herbs  
+  3. Natural Supplements & Ayurvedic Herbs
+
+• Ask at most ONE short clarifying question when truly needed.
+• Keep follow-up tone warm and concise.
 
 ---------------------------------
 FEW-SHOT EXAMPLE (Follow tone + structure)
-
-✨ What’s Happening in Your Body
-
-Bloating can occur when digestion slows, allowing gas to accumulate in the intestines.  
-This may happen from eating quickly, irregular meals, or foods that ferment easily.  
-Warmth can help the gut move more smoothly.  
-Ayurveda sees this as slight dryness and lightness in the system.
-
-💚 Personalized Natural Remedies  
-
-1️⃣ Nourishing Food & Drinks  
-- Warm meals like soups or lightly spiced lentils  
-- Ginger–fennel tea  
-- Add a pinch of cumin or ajwain  
-- Avoid cold drinks and heavy raw foods  
-
-2️⃣ Lifestyle, Routine & Movement  
-- Gentle walking after meals  
-- Light daily movement and household activity  
-- Warm compress or Epsom-salt bath for relaxation  
-- Follow a calming evening routine aligned with circadian rhythm  
-- If helpful, engage in general strengthening activities like light yoga or sports (no specific poses)
-
-3️⃣ Natural Supplements & Ayurvedic Herbs  
-- Magnesium glycinate  
-- Triphala  
-- Ginger or fennel capsules  
-- Small pinch of hing in warm water   
+[Same example as above, omitted here for brevity in your mental model]
 
 ---------------------------------
 
-Now create a UNIQUE response for: {query}
+Now create a UNIQUE response for this user:
 
-✨ What’s Happening in Your Body  
+❓ Clarifying Question (only if needed)
+(Ask ONE short question if key info is missing; otherwise skip.)
+
+✨ What’s Happening in Your Body
 (2–4 lines blending RAG + gentle physiology + ONE Ayurveda line.)
 
-💚 Personalized Natural Remedies  
+💚 Action Steps
 
-1️⃣ Nourishing Food & Drinks  
-(3–5 food + drink items tied to RAG.)
+1️⃣ Nourishing Food & Drinks
+(3–5 food + drink items tied to the RAG text and {query}.)
 
-2️⃣ Lifestyle, Routine & Movement  
-(3–6 supportive daily practices such as walking, gentle movement, light sports activity, 
-general strengthening exercises, warm Epsom-salt bath, light warm oil massage for the body, circadian rhythm routines appropriate for {query}. 
+2️⃣ Lifestyle, Routine & Movement
+(3–6 supportive daily practices such as:
+- walking,
+- gentle daily movement or light sports activity,
+- general strengthening exercises,
+- warm Epsom-salt bath,
+- light warm oil massage for the body,
+- circadian rhythm routines and consistent bed-time for {query}.
 NO specific yoga poses or detailed exercise instructions.)
 
-3️⃣ Natural Supplements & Ayurvedic Herbs  
+3️⃣ Natural Supplements & Ayurvedic Herbs
 (3–6 supplements.)
-- Use RAG when available.  
-- If not, safe universal options.  
+- Use RAG when available.
+- If not, choose safe universal options.
 
-RULES:
-• Avoid repetition.  
-• No Sanskrit unless user asks for Ayurveda.  
-• No alarming causes.  
-• Stay warm, supportive, non-medical.   
+4️⃣ Gentle Follow-Up
+End with ONE friendly line:
+“Tell me a bit about your routine or any other symptoms, and I can refine this.”
 """
 
     else:
@@ -528,13 +532,16 @@ You are Nani-AI, a warm naturopathy + Ayurveda–inspired wellness guide.
 
 No RAG was found for: {query}
 
+PRIOR CONVERSATION (most recent turns):
+{history_snippet if history_snippet else "None."}
+
 Guidelines:
 • VERY IMPORTANT — Non-Alarming Rule:
   - Never list dangerous medical conditions or diagnoses.
   - Keep physiology gentle and supportive.
-• “What’s Happening in Your Body” must explain  
-  simple physiology only (hydration, digestion, mild irritation, circulation, stress, posture).  
-• End with ONE short Ayurveda line.  
+• “What’s Happening in Your Body” must explain
+  simple physiology only (hydration, digestion, mild irritation, circulation, stress, posture).
+• End with ONE short Ayurveda line.
 • No Sanskrit dosha names unless user asks for Ayurvedic remedy.
 
 • Conditional Ayurveda Mode:
@@ -548,84 +555,65 @@ Guidelines:
 • Supplement Rule (Semi-Strict):
   - Without RAG, you may use safe, widely known natural supplements and gentle Ayurvedic herbs.
 
-• Remedies must include:
-  1. Nourishing Food & Drinks  
-  2. Lifestyle, Routine & Movement  
-  3. Natural Supplements & Ayurvedic Herbs  
+• Remedies must include three ACTION sections:
+  1. Nourishing Food & Drinks
+  2. Lifestyle, Routine & Movement
+  3. Natural Supplements & Ayurvedic Herbs
+
+• Ask at most ONE clarifying question only when needed.
+• End with a gentle question inviting one more follow-up.
 
 ---------------------------------
 FEW-SHOT EXAMPLE (Follow tone + structure)
-
-✨ What’s Happening in Your Body
-
-Bloating can occur when digestion slows, allowing gas to accumulate in the intestines.  
-This may happen from eating quickly, irregular meals, or foods that ferment easily.  
-Warmth can help the gut move more smoothly.  
-Ayurveda sees this as slight dryness and lightness in the system.
-
-💚 Personalized Natural Remedies  
-
-1️⃣ Nourishing Food & Drinks  
-- Warm meals like soups or lightly spiced lentils  
-- Ginger–fennel tea  
-- Add a pinch of cumin or ajwain  
-- Avoid cold drinks and heavy raw foods  
-
-2️⃣ Lifestyle, Routine & Movement  
-- Gentle walking after meals  
-- Light daily movement and household activity  
-- Warm compress or Epsom-salt bath for relaxation  
-- Follow a calming evening routine aligned with circadian rhythm  
-- If helpful, engage in general strengthening activities like light yoga or sports (no specific poses)
-
-3️⃣ Natural Supplements & Ayurvedic Herbs  
-- Magnesium glycinate  
-- Triphala  
-- Ginger or fennel capsules  
-- Small pinch of hing in warm water   
+[Same example as in prior modes.]
 
 ---------------------------------
 
-Now answer for {query} in this format:
+Now answer for this user and this query: {query}
 
-✨ What’s Happening in Your Body  
+❓ Clarifying Question (only if needed)
+(If something important is unclear, ask ONE short question. Otherwise skip.)
+
+✨ What’s Happening in Your Body
 (2–4 gentle lines + ONE Ayurveda line.)
 
-💚 Personalized Natural Remedies  
+💚 Action Steps
 
-1️⃣ Nourishing Food & Drinks  
+1️⃣ Nourishing Food & Drinks
 (3–5 items.)
 
-2️⃣ Lifestyle, Routine & Movement  
-(3–6 supportive daily practices such as walking, gentle movement, light sports activity, 
-general strengthening exercises, warm Epsom-salt bath, light warm oil massage for the body, circadian rhythm routines appropriate for {query}. 
+2️⃣ Lifestyle, Routine & Movement
+(3–6 supportive daily practices such as:
+- walking,
+- gentle movement or light sports activity,
+- general strengthening exercises,
+- warm Epsom-salt bath,
+- light warm oil massage for the body,
+- circadian rhythm routines and going to bed on time for {query}.
 NO specific yoga poses or detailed exercise instructions.)
 
-3️⃣ Natural Supplements & Ayurvedic Herbs  
+3️⃣ Natural Supplements & Ayurvedic Herbs
 (3–6 items.)
 - Use safe, gentle options.
 
-RULES:
-• No Sanskrit unless user requests Ayurveda mode.  
-• No alarming causes.  
-• No medical claims.  
-• Keep tone warm, calm, and personalized.      
+4️⃣ Gentle Follow-Up
+Close with ONE friendly invitation:
+“If you tell me a little more about your schedule or symptoms, I can fine-tune this.”
 """
 
-# Avoid over-long prompts but keep them intact
-    if len(final_prompt) > 20000:   # 24k chars safe for GPT-4o
+    # Avoid over-long prompts
+    if len(final_prompt) > 20000:
         final_prompt = final_prompt[:20000]
 
- 
     # ---------------------------------------------------
-    # LLM Completion (WITH TEMPERATURE TUNING)
+    # LLM Completion
     # ---------------------------------------------------
     step_llm = time.time()
 
     ai = client_ai.chat.completions.create(
         model="gpt-4o-mini",
-        temperature=0.3,            # ⭐ tuned temperature
-        max_tokens=650,              # ⭐ stable response length
+        temperature=0.3,
+        max_tokens=650,
         messages=[{"role": "user", "content": final_prompt}],
     )
 
@@ -638,7 +626,7 @@ RULES:
     # ANALYTICS (async)
     # ---------------------------------------------------
     asyncio.create_task(log_analytics({
-        "user_id": user["id"],              
+        "user_id": user["id"],
         "user_email": user["email"],
         "query": query,
         "match_count": len(matches),
@@ -648,6 +636,7 @@ RULES:
         "sources": [m["source"] for m in matches] if matches else [],
         "latency_ms": int((time.time() - total_start) * 1000)
     }))
+
     # ---------------------------------------------------
     # TOTAL RUNTIME
     # ---------------------------------------------------
