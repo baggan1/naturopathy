@@ -318,7 +318,7 @@ async def fetch_results(request: Request):
     # PROMPT GENERATION — CONVERSATIONAL + FOLLOW-UP LOGIC
     # -------------------------------------------------------
 
-followup_rule = """
+    followup_rule = """
 FOLLOW-UP DETECTION LOGIC (STRICT):
 
 A message IS a follow-up to the SAME ailment when ANY of the following are true:
