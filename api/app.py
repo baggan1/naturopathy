@@ -318,97 +318,94 @@ async def fetch_results(request: Request):
     # PROMPT GENERATION — CONVERSATIONAL + FOLLOW-UP LOGIC
     # -------------------------------------------------------
 
-    # This rule instructs the LLM how to behave depending on whether the user
-    # is asking a follow-up question about the SAME ailment or introducing a new one.
     followup_rule = """
 CONVERSATION MODE RULE:
-You MUST decide whether the user's new message is:
+
+You MUST decide whether the user’s new message is:
 A) a follow-up question about the SAME ailment, OR
 B) a new ailment / new primary concern.
 
-DETECT A FOLLOW-UP QUESTION WHEN:
-• The user's message asks for clarification (e.g., "why?", "should I?", "when?", "how long?", "is this normal?"), AND
-• It does NOT introduce a new unrelated symptom or illness (e.g., “now I have headaches”).
+DETECT A FOLLOW-UP WHEN:
+• The user’s message asks for clarification (“why?”, “should I?”, “how long?”, “is this normal?”, “what about this?”)
+AND
+• The message does NOT introduce a new unrelated symptom (e.g., “now I have headaches too”).
 
-IF IT *IS* A FOLLOW-UP ABOUT THE SAME ISSUE:
-→ Respond ONLY with a single warm, conversational paragraph.
-→ DO NOT produce structured sections.
-→ DO NOT repeat the 4-part format.
+IF THIS IS A FOLLOW-UP ABOUT THE SAME AILMENT:
+→ Respond ONLY with a warm, natural PARAGRAPH.
+→ You may include 1–2 small bullet items ONLY if the user explicitly asks for “more foods”, “more supplements”, or “more remedies”.
+→ DO NOT produce the 4-part structure.
 → DO NOT repeat “What’s Happening in Your Body”.
-→ Offer clarification, additional insights, or simple next steps in a natural conversational tone.
+→ DO NOT produce large bullet lists.
 
-IF IT *IS A NEW AILMENT*:
-→ Respond using the FULL, structured 4-section format.
+IF THIS IS A NEW AILMENT:
+→ Use the FULL STRUCTURED FORMAT:
 
-STRUCTURED FORMAT (ONLY FOR NEW AILMENTS):
-1. ❓ (Optional) Clarifying Question — ONLY if essential
-2. ✨ What’s Happening in Your Body — simple, gentle physiology + ONE Ayurveda line
-3. 💚 Action Steps  
-   1️⃣ Nourishing Food & Drinks  
-   2️⃣ Lifestyle, Routine & Movement  
-       (walking, daily gentle movement, light sports; NO specific yoga poses)
-   3️⃣ Natural Supplements & Ayurvedic Herbs  
-4. Friendly follow-up question
+1. ✨ What’s Happening in Your Body  
+   (Write 3–5 gentle sentences explaining physiology; no alarming language.)
 
-NEVER break these rules.
+2. 💚 Action Steps  
+   1️⃣ Nourishing Food & Drinks — bullet points  
+   2️⃣ Lifestyle, Routine & Movement — bullet points  
+       • Walking, gentle movement, household activity  
+       • Gentle yoga or general strengthening exercises allowed  
+       • Epsom-salt warm bath  
+       • Light oil massage  
+       • Circadian rhythm sleep  
+   3️⃣ Natural Supplements & Ayurvedic Herbs — bullet points  
+
+3. Friendly follow-up question (paragraph)
+
+MANDATORY RULES:
+• No specific yoga pose names. Only “gentle yoga”, “simple strengthening”, “light stretching”, etc.
+• No alarming medical explanations.
+• Ayurveda reasoning only if user explicitly asks for Ayurvedic remedy/dosha.
+• Supplements must be safe and gentle.
 """
 
     # -------------------------------------------------------
-    # Variation: RAG_ONLY (high similarity)
+    # RAG_ONLY (high confidence)
     # -------------------------------------------------------
     if matches and max_sim >= 0.55:
         mode = "RAG_ONLY"
         rag_used = True
-        chunks_text = "\n\n".join([m["chunk"][:650] for m in matches]) if matches else ""
+        chunks_text = "\n\n".join([m["chunk"][:650] for m in matches])
         chunks_text = chunks_text[:3500]
 
         final_prompt = f"""
-You are Nani-AI, a warm naturopathy + Ayurveda–inspired wellness guide.
+You are Nani-AI, a warm, naturopathy + Ayurveda–inspired wellness guide.
 
 USER QUERY:
 {query}
 
-PRIOR CONVERSATION (summarized recent message history):
+PRIOR CONVERSATION:
 {history_snippet if history_snippet else "None."}
 
-PRIMARY KNOWLEDGE (RAG SOURCE):
+HIGH-RELEVANCE KNOWLEDGE (RAG):
 <<<RAG>>>
 {chunks_text}
 <<<END-RAG>>>
 
 {followup_rule}
 
-CORE RULES FOR RESPONSES:
-• Maintain a calming, gentle, safe tone. Never list dangerous diseases or alarming causes.
-• “What’s happening in the body” must be simple physiology only:
-    – digestion motility  
-    – circulation  
-    – hydration  
-    – tension  
-    – stress load  
-    – mild inflammation  
-• After physiology, include ONE short Ayurveda interpretation (no diagnosis).
-• NO specific yoga poses. Only mention general movement: walking, light activity, gentle strengthening, etc.
-• Supplements: Prefer those found in RAG. If none appear, use safe general natural supplements or gentle herbs.
-• Ayurveda Mode activates ONLY if user explicitly asks for Ayurvedic remedy, dosha analysis, or tridosha reasoning:
-    – Identify Vata/Pitta/Kapha imbalance  
-    – Ahara (diet), Vihara (lifestyle)  
-    – Rasayana / herbal support  
+RESPONSE RULES:
+• Maintain a calming tone.
+• Keep physiology gentle (digestion, circulation, hydration, tension, mild inflammation).
+• Include ONE short Ayurveda interpretation unless user requests full dosha analysis.
+• *When following full structured format*, ensure all remedies are presented as bullet points.
+• Yoga is allowed only as “gentle yoga” or “simple strengthening exercises” (no pose names).
 
----
-
-NOW PRODUCE THE CORRECT RESPONSE FORMAT BASED ON THE FOLLOW-UP RULE ABOVE.
-If follow-up → paragraph only.
-If new ailment → full structured 4-section format.
+NOW DETERMINE FORMAT:
+• If this is a follow-up to the SAME ailment → return ONLY a paragraph (optionally tiny bullets if user asks for “more items”).
+• If this is a NEW ailment → return the full structured 3-section bullet list format.
 """
 
     # -------------------------------------------------------
-    # Variation: HYBRID (medium similarity)
+    # HYBRID (medium similarity)
     # -------------------------------------------------------
     elif matches and max_sim >= 0.25:
         mode = "HYBRID"
         rag_used = True
-        chunks_text = "\n\n".join([m["chunk"][:650] for m in matches]) if matches else ""
+        chunks_text = "\n\n".join([m["chunk"][:650] for m in matches])
         chunks_text = chunks_text[:3500]
 
         final_prompt = f"""
@@ -420,7 +417,7 @@ USER QUERY:
 PRIOR CONVERSATION:
 {history_snippet if history_snippet else "None."}
 
-PARTIAL MATCH KNOWLEDGE (RAG):
+PARTIAL RAG:
 <<<RAG>>>
 {chunks_text}
 <<<END-RAG>>>
@@ -428,23 +425,19 @@ PARTIAL MATCH KNOWLEDGE (RAG):
 {followup_rule}
 
 HYBRID RULES:
-• Blend partial RAG + gentle physiology.  
-• Keep all explanations non-alarming.  
-• Provide ONE short Ayurveda interpretation unless user explicitly requests deeper analysis.  
-• Lifestyle must include only general movement: walking, daily gentle activity, light sports.  
-• NO yoga poses or stretching prescriptions.  
-• Supplements may combine RAG + safe universal options.
+• Blend partial RAG + physiology.
+• Keep tone gentle and non-alarming.
+• When using structured mode, remedies must be bullet points.
+• Yoga allowed only generally (“gentle yoga”, “light stretching”, “general strengthening”).
+• Ayurveda mode activates only when user explicitly asks.
 
----
-
-NOW PRODUCE THE CORRECT RESPONSE BASED ON WHETHER THIS IS A FOLLOW-UP
-(→ paragraph only)
-OR A NEW AILMENT 
-(→ full structured 4-section format).
+NOW CHOOSE THE CORRECT FORMAT:
+• Follow-up = paragraph only.  
+• New ailment = full structured 4-section response with bullet points.
 """
 
     # -------------------------------------------------------
-    # Variation: LLM_ONLY (low similarity)
+    # LLM_ONLY (no RAG available)
     # -------------------------------------------------------
     else:
         mode = "LLM_ONLY"
@@ -453,7 +446,7 @@ OR A NEW AILMENT
         final_prompt = f"""
 You are Nani-AI, a warm naturopathy + Ayurveda–inspired wellness guide.
 
-No relevant RAG was found for:
+No RAG knowledge found for:
 {query}
 
 PRIOR CONVERSATION:
@@ -462,21 +455,19 @@ PRIOR CONVERSATION:
 {followup_rule}
 
 LLM-ONLY RULES:
-• Keep all physiology gentle, plain, and non-alarming.  
-• Include ONE short Ayurveda interpretation in simple English.  
-• Ayurveda Mode (dosha analysis) activates ONLY if the user explicitly asks.  
-• Supplements must be safe, well-known natural options or gentle Ayurvedic herbs.  
-• NO yoga poses. Only general movement suggestions.
+• Physiology must remain gentle and safe.
+• Ayurveda reasoning only if user requests.
+• When using structured mode, all remedies must be bullet points.
+• Yoga is allowed only as general movement (“gentle yoga”, no pose names).
 
----
-
-NOW PRODUCE THE CORRECT RESPONSE BASED ON THE FOLLOW-UP RULE ABOVE.
+NOW DETERMINE RESPONSE STYLE:
+• If follow-up about SAME ailment → paragraph only.  
+• If NEW ailment → full structured response with bullet points in Action Steps.
 """
 
-    # Shorten prompt if too long
+    # Ensure safety: prevent overly long prompts
     if len(final_prompt) > 20000:
         final_prompt = final_prompt[:20000]
-
 
     # ---------------------------------------------------
     # LLM Completion
