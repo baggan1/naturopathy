@@ -363,7 +363,7 @@ STRUCTURED RESPONSE FORMAT:
 (3–5 gentle sentences: digestion, circulation, hydration, tension, inflammation—non-alarming)  
 (Include ONE short Ayurveda interpretation unless user explicitly asks for Ayurveda mode.)
 
-💚 Personalized Remedy  
+💚 Personalized Remedies  
 1️⃣ Nourishing Food & Drinks  
 • bullet points  
 • warm, simple meals; teas; fibers; gentle spices  
