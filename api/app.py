@@ -188,7 +188,7 @@ async def log_analytics(data: dict):
 
 
 # ----------------------------------------------
-# NANI-AI MAIN ENDPOINT (CONVERSATIONAL)
+# NANI MAIN ENDPOINT (CONVERSATIONAL)
 # ----------------------------------------------
 @app.post("/fetch_naturopathy_results")
 async def fetch_results(request: Request):
@@ -402,7 +402,7 @@ STRUCTURED RESPONSE FORMAT:
         chunks_text = chunks_text[:3500]
 
         final_prompt = f"""
-You are Nani-AI, a warm naturopathy + Ayurveda–inspired wellness guide.
+You are Nani, a warm naturopathy + Ayurveda–inspired wellness guide.
 
 USER QUERY:
 {query}
@@ -435,7 +435,7 @@ Produce your answer now following the correct mode.
         chunks_text = chunks_text[:3500]
 
         final_prompt = f"""
-You are Nani-AI, a warm naturopathy + Ayurveda–inspired wellness guide.
+You are Nani, a warm naturopathy + Ayurveda–inspired wellness guide.
 
 USER QUERY:
 {query}
@@ -464,7 +464,7 @@ NOW DETERMINE RESPONSE TYPE:
         rag_used = False
 
         final_prompt = f"""
-You are Nani-AI, a warm naturopathy + Ayurveda–inspired wellness guide.
+You are Nani, a warm naturopathy + Ayurveda–inspired wellness guide.
 
 USER QUERY:
 {query}
@@ -505,7 +505,7 @@ NOW DETERMINE RESPONSE TYPE:
     )
 
     summary = ai.choices[0].message.content
-    summary += "\n\n⚠️ Disclaimer: Nani-AI provides general wellness guidance, not medical care."
+    summary += "\n\n⚠️ Disclaimer: Nani provides general wellness guidance, not medical care."
 
     print(f"STEP 5: LLM Completion: {time.time() - step_llm:.2f} sec")
 
