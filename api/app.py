@@ -359,11 +359,12 @@ A message IS a follow-up ONLY IF ALL conditions are true:
 → Output the FULL structured format:
 
 STRUCTURED RESPONSE FORMAT:
-✨ General Insight 
+✨ Physiology Insights 
 (3–5 gentle sentences: digestion, circulation, hydration, tension, inflammation—non-alarming)  
 (Include ONE short Ayurveda interpretation unless user explicitly asks for Ayurveda mode.)
 
-💚 Personalized Remedies  
+💚 Personalized Remedies 
+ 
 1️⃣ Nourishing Food & Drinks  
 • bullet points  
 • warm, simple meals; teas; fibers; gentle spices  
