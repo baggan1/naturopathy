@@ -33,6 +33,7 @@ async def preflight_handler():
 # ----------------------------------------------
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+SUPABASE_JWT_SECRET = os.environ.get('SUPABASE_JWT_SECRET')
 SECRET = os.getenv("APP_SECRET")
 SUCCESS_URL = os.getenv("STRIPE_SUCCESS_URL")
 CANCEL_URL = os.getenv("STRIPE_CANCEL_URL")
